@@ -4,19 +4,60 @@ import { loadSlim } from "@tsparticles/slim";
 import type { ISourceOptions } from "@tsparticles/engine";
 import { usePerformanceProfile } from "../hooks/usePerformanceProfile";
 
+let engineInitPromise: Promise<void> | null = null;
+
 export function CosmicBackground() {
   const [engineReady, setEngineReady] = useState(false);
+  const [viewportKey, setViewportKey] = useState(0);
   const { particleCountMultiplier, isReducedMotion } = usePerformanceProfile();
 
   useEffect(() => {
-    initParticlesEngine(async (engine) => {
-      await loadSlim(engine);
-    }).then(() => {
-      setEngineReady(true);
+    let mounted = true;
+    if (!engineInitPromise) {
+      engineInitPromise = initParticlesEngine(async (engine) => {
+        await loadSlim(engine);
+      });
+    }
+    engineInitPromise
+      .then(() => {
+        if (mounted) setEngineReady(true);
+      })
+      .catch(() => {
+        // Fallback CSS stars remain visible if tsParticles fails
+      });
+
+    // iPad Safari dikey <-> yatay döndürme sonrasında arka plan kanvasını yeni ekran boyutuna zorla
+    let orientTimeout1: number | null = null;
+    let orientTimeout2: number | null = null;
+
+    const handleOrientationChange = () => {
+      if (orientTimeout1 !== null) window.clearTimeout(orientTimeout1);
+      if (orientTimeout2 !== null) window.clearTimeout(orientTimeout2);
+
+      orientTimeout1 = window.setTimeout(() => {
+        window.dispatchEvent(new Event("resize"));
+      }, 150);
+
+      orientTimeout2 = window.setTimeout(() => {
+        if (mounted) {
+          setViewportKey((prev) => prev + 1);
+        }
+      }, 420);
+    };
+
+    window.addEventListener("orientationchange", handleOrientationChange, {
+      passive: true,
     });
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("orientationchange", handleOrientationChange);
+      if (orientTimeout1 !== null) window.clearTimeout(orientTimeout1);
+      if (orientTimeout2 !== null) window.clearTimeout(orientTimeout2);
+    };
   }, []);
 
-  const starCount = Math.max(25, Math.round(85 * particleCountMultiplier));
+  const starCount = Math.max(25, Math.round(75 * particleCountMultiplier));
 
   const options: ISourceOptions = {
     fullScreen: { enable: false },
@@ -38,7 +79,7 @@ export function CosmicBackground() {
         type: ["circle", "star"],
       },
       opacity: {
-        value: { min: 0.15, max: 0.85 },
+        value: { min: 0.2, max: 0.85 },
         animation: {
           enable: !isReducedMotion,
           speed: 0.8,
@@ -46,16 +87,16 @@ export function CosmicBackground() {
         },
       },
       size: {
-        value: { min: 1, max: 3.5 },
+        value: { min: 1, max: 3.2 },
         animation: {
           enable: !isReducedMotion,
-          speed: 1.5,
+          speed: 1.4,
           sync: false,
         },
       },
       move: {
         enable: !isReducedMotion,
-        speed: { min: 0.15, max: 0.6 },
+        speed: { min: 0.15, max: 0.55 },
         direction: "top",
         random: true,
         straight: false,
@@ -73,8 +114,8 @@ export function CosmicBackground() {
       },
       modes: {
         bubble: {
-          distance: 140,
-          size: 5,
+          distance: 130,
+          size: 4.5,
           duration: 2,
           opacity: 0.9,
         },
@@ -84,18 +125,26 @@ export function CosmicBackground() {
 
   return (
     <div
-      className="fixed inset-0 pointer-events-none z-0 overflow-hidden"
+      className="fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden"
       aria-hidden="true"
     >
-      {/* Deep Cosmic Nebulae Layers */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,#4A102D_0%,#080611_65%,#05030A_100%)] opacity-90" />
-      <div className="absolute -top-40 -left-40 w-[36rem] h-[36rem] rounded-full bg-[#E83E70]/12 blur-[130px] animate-pulse-slow" />
-      <div className="absolute top-1/3 -right-32 w-[32rem] h-[32rem] rounded-full bg-[#F5D58A]/10 blur-[140px]" />
-      <div className="absolute -bottom-48 left-1/4 w-[40rem] h-[40rem] rounded-full bg-[#4A102D]/35 blur-[150px]" />
+      {/* iPad Safari GPU Tile Memory Dostu Çok Katmanlı Romantik Nebula Gradienti (Ağır blur-[150px] katmanları olmadan) */}
+      <div
+        className="absolute inset-0 w-full h-full"
+        style={{
+          background: [
+            "radial-gradient(circle at 18% 18%, rgba(232, 62, 112, 0.18) 0%, transparent 48%)",
+            "radial-gradient(circle at 82% 32%, rgba(245, 213, 138, 0.14) 0%, transparent 48%)",
+            "radial-gradient(circle at 50% 78%, rgba(74, 16, 45, 0.45) 0%, transparent 58%)",
+            "radial-gradient(ellipse at 50% 35%, #4A102D 0%, #160618 62%, #080611 100%)",
+          ].join(", "),
+        }}
+      />
 
       {/* tsParticles Starfield */}
       {engineReady && (
         <Particles
+          key={viewportKey}
           id="sena-cosmic-stars"
           className="absolute inset-0 w-full h-full"
           options={options}
@@ -104,7 +153,7 @@ export function CosmicBackground() {
 
       {/* Subtle Rising Ambient Hearts (GPU-accelerated CSS) */}
       {!isReducedMotion && (
-        <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 w-full h-full overflow-hidden">
           {[...Array(8)].map((_, idx) => (
             <span
               key={idx}

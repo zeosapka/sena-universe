@@ -102,14 +102,32 @@ export function OpeningPortal({ onEnterUniverse }: OpeningPortalProps) {
       if (!ctx) return;
 
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const vpW = window.innerWidth;
-      const vpH = window.innerHeight;
+      const vpW = Math.max(
+        320,
+        Math.round(
+          window.visualViewport?.width ||
+            document.documentElement?.clientWidth ||
+            window.innerWidth ||
+            1024
+        )
+      );
+      const vpH = Math.max(
+        320,
+        Math.round(
+          window.visualViewport?.height ||
+            document.documentElement?.clientHeight ||
+            window.innerHeight ||
+            768
+        )
+      );
       if (
         canvas.width !== Math.round(vpW * dpr) ||
         canvas.height !== Math.round(vpH * dpr)
       ) {
         canvas.width = Math.round(vpW * dpr);
         canvas.height = Math.round(vpH * dpr);
+        canvas.style.width = `${vpW}px`;
+        canvas.style.height = `${vpH}px`;
       }
 
       ctx.save();
@@ -226,12 +244,12 @@ export function OpeningPortal({ onEnterUniverse }: OpeningPortalProps) {
         paddingTop: "max(4.75rem, env(safe-area-inset-top, 0px))",
         paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
       }}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center min-h-screen min-h-[100dvh] px-5 sm:px-6 overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_center,#4A102D_0%,#080611_70%)] select-none"
+      className="fixed inset-0 w-full h-full z-50 flex flex-col items-center justify-center min-h-screen min-h-[100dvh] px-5 sm:px-6 overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_center,#4A102D_0%,#080611_70%)] select-none"
     >
-      {/* TAM EKRAN (100vw x 100vh) Vektörel Kalp Geçiş Kanvası — Asla kare kutu kesilmesi yapmaz */}
+      {/* TAM EKRAN Vektörel Kalp Geçiş Kanvası — Asla kare kutu kesilmesi yapmaz */}
       <canvas
         ref={portalCanvasRef}
-        className="fixed inset-0 w-screen h-screen pointer-events-none z-40"
+        className="fixed inset-0 w-full h-full pointer-events-none z-40 block"
       />
 
       {/* Subtle Ambient Rings */}

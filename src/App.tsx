@@ -21,7 +21,7 @@ export function App() {
   const [hasEntered, setHasEntered] = useState(false);
 
   return (
-    <div className="relative min-h-[100dvh] bg-[#080611] text-[#FFF8FC] selection:bg-[#E83E70]/40 selection:text-[#FFF8FC]">
+    <div className="relative w-full min-w-full min-h-screen min-h-[100dvh] overflow-x-clip bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] text-[#FFF8FC] selection:bg-[#E83E70]/40 selection:text-[#FFF8FC]">
       {/* Persistent Cosmic Starfield & Rising Hearts */}
       <CosmicBackground />
 

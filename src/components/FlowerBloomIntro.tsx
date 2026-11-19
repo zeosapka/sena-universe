@@ -18,7 +18,6 @@ interface ChrysanthemumPetal {
   width: number;
   cupCurve: number;
   openDelay: number;
-  hueShift: number;
 }
 
 interface BranchSpec {
@@ -65,11 +64,6 @@ function clamp01(v: number): number {
 function easeOutCubic(t: number): number {
   const x = clamp01(t);
   return 1 - Math.pow(1 - x, 3);
-}
-
-function easeInOutCubic(t: number): number {
-  const x = clamp01(t);
-  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 }
 
 function getCubicBezierPoint(
@@ -209,6 +203,29 @@ function traceChrysanthemumLeaf(
   ctx.closePath();
 }
 
+function readLiveViewportSize(wrapper: HTMLDivElement | null): {
+  width: number;
+  height: number;
+} {
+  // iPad Safari'de dikey <-> yatay geçişlerinde en güncel ekran ölçüsünü okur
+  const vvW = window.visualViewport?.width || 0;
+  const vvH = window.visualViewport?.height || 0;
+  const docW = document.documentElement?.clientWidth || 0;
+  const docH = document.documentElement?.clientHeight || 0;
+  const winW = window.innerWidth || 0;
+  const winH = window.innerHeight || 0;
+  const wrapW = wrapper?.clientWidth || 0;
+  const wrapH = wrapper?.clientHeight || 0;
+
+  const rawW = vvW > 100 ? vvW : winW > 100 ? winW : docW > 100 ? docW : wrapW || 1024;
+  const rawH = vvH > 100 ? vvH : winH > 100 ? winH : docH > 100 ? docH : wrapH || 768;
+
+  return {
+    width: Math.max(320, Math.round(rawW)),
+    height: Math.max(320, Math.round(rawH)),
+  };
+}
+
 export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -218,8 +235,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
   );
   const { isReducedMotion, particleCountMultiplier } = usePerformanceProfile();
 
-  // iPad Safari'de yeniden render veya ekran döndürme sırasında animasyonun
-  // sıfırlanmasını / kaybolmasını önlemek için profil değerlerini ref üzerinden okuyoruz
   const isReducedMotionRef = useRef(isReducedMotion);
   const particleMultiplierRef = useRef(particleCountMultiplier);
   isReducedMotionRef.current = isReducedMotion;
@@ -228,26 +243,29 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
   const hasBloomedRef = useRef(false);
   const isTransitioningRef = useRef(false);
   const heartPortalRef = useRef({ progress: 0 });
-  const viewportSizeRef = useRef({ width: 1024, height: 768 });
 
   const triggerCinematicHeartDive = () => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
     setStage("transitioning");
 
-    confetti({
-      particleCount: Math.max(
-        35,
-        Math.round(80 * particleMultiplierRef.current)
-      ),
-      spread: 120,
-      origin: { y: 0.45 },
-      colors: ["#E83E70", "#FF91B5", "#F5D58A", "#FFF8FC"],
-      scalar: 1.15,
-    });
+    try {
+      confetti({
+        particleCount: Math.max(
+          30,
+          Math.round(75 * particleMultiplierRef.current)
+        ),
+        spread: 115,
+        origin: { y: 0.45 },
+        colors: ["#E83E70", "#FF91B5", "#F5D58A", "#FFF8FC"],
+        scalar: 1.1,
+      });
+    } catch {
+      // ignore confetti canvas error on low-memory devices
+    }
 
     if (isReducedMotionRef.current) {
-      window.setTimeout(onComplete, 450);
+      window.setTimeout(onComplete, 420);
       return;
     }
 
@@ -261,7 +279,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       heartPortalRef.current,
       {
         progress: 1,
-        duration: 1.32,
+        duration: 1.28,
         ease: "power3.inOut",
       },
       0
@@ -272,10 +290,10 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         stageWrapperRef.current,
         {
           opacity: 0,
-          duration: 0.36,
+          duration: 0.35,
           ease: "power2.out",
         },
-        1.02
+        0.98
       );
     }
   };
@@ -286,6 +304,12 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
+
+    // Her mount/refresh'te başlangıç durumunu deterministik olarak sıfırla
+    hasBloomedRef.current = false;
+    isTransitioningRef.current = false;
+    heartPortalRef.current.progress = 0;
+    setStage("growing");
 
     const generateChrysanthemumRings = (
       ringCount: number
@@ -308,8 +332,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
             length: 98 * (1 - ringNorm * 0.68),
             width: 26 * (1 - ringNorm * 0.45),
             cupCurve: (p % 2 === 0 ? 1 : -1) * (0.06 + (1 - ringNorm) * 0.05),
-            openDelay: ringNorm * 0.42 + (p / petalsInRing) * 0.04,
-            hueShift: (p % 3) * 0.04,
+            openDelay: ringNorm * 0.38 + (p / petalsInRing) * 0.035,
           });
         }
       }
@@ -324,6 +347,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
     const cx = sceneW / 2;
     const baseY = sceneH - 18;
 
+    // 0. saniyeden itibaren hemen görünür şekilde yükselen ve erken çiçeklenen dallar
     const branches: BranchSpec[] = [
       {
         id: "main-stem",
@@ -338,14 +362,14 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         thicknessStart: 10.5,
         thicknessEnd: 4.8,
         startTime: 0.0,
-        duration: 0.42,
+        duration: 0.34,
         leaves: [
-          { t: 0.24, side: -1, angleOffset: -0.68, scale: 1.06, delayOffset: 0.1 },
-          { t: 0.42, side: 1, angleOffset: 0.64, scale: 1.0, delayOffset: 0.18 },
-          { t: 0.62, side: -1, angleOffset: -0.58, scale: 0.9, delayOffset: 0.26 },
+          { t: 0.24, side: -1, angleOffset: -0.68, scale: 1.06, delayOffset: 0.06 },
+          { t: 0.42, side: 1, angleOffset: 0.64, scale: 1.0, delayOffset: 0.12 },
+          { t: 0.62, side: -1, angleOffset: -0.58, scale: 0.9, delayOffset: 0.18 },
         ],
         flowerScale: 1.12,
-        bloomStartTime: 0.3,
+        bloomStartTime: 0.14,
         isMainCenter: true,
       },
       {
@@ -360,14 +384,14 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         endY: 288,
         thicknessStart: 6.5,
         thicknessEnd: 3.2,
-        startTime: 0.14,
-        duration: 0.38,
+        startTime: 0.08,
+        duration: 0.34,
         leaves: [
-          { t: 0.36, side: -1, angleOffset: -0.72, scale: 0.86, delayOffset: 0.22 },
-          { t: 0.66, side: 1, angleOffset: 0.58, scale: 0.76, delayOffset: 0.3 },
+          { t: 0.36, side: -1, angleOffset: -0.72, scale: 0.86, delayOffset: 0.14 },
+          { t: 0.66, side: 1, angleOffset: 0.58, scale: 0.76, delayOffset: 0.22 },
         ],
         flowerScale: 0.68,
-        bloomStartTime: 0.42,
+        bloomStartTime: 0.24,
       },
       {
         id: "right-upper-branch",
@@ -381,14 +405,14 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         endY: 284,
         thicknessStart: 6.5,
         thicknessEnd: 3.2,
-        startTime: 0.17,
-        duration: 0.38,
+        startTime: 0.1,
+        duration: 0.34,
         leaves: [
-          { t: 0.38, side: 1, angleOffset: 0.72, scale: 0.86, delayOffset: 0.25 },
-          { t: 0.68, side: -1, angleOffset: -0.58, scale: 0.76, delayOffset: 0.33 },
+          { t: 0.38, side: 1, angleOffset: 0.72, scale: 0.86, delayOffset: 0.16 },
+          { t: 0.68, side: -1, angleOffset: -0.58, scale: 0.76, delayOffset: 0.24 },
         ],
         flowerScale: 0.68,
-        bloomStartTime: 0.44,
+        bloomStartTime: 0.26,
       },
       {
         id: "left-lower-branch",
@@ -402,13 +426,13 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         endY: 392,
         thicknessStart: 5.0,
         thicknessEnd: 2.5,
-        startTime: 0.22,
-        duration: 0.36,
+        startTime: 0.14,
+        duration: 0.34,
         leaves: [
-          { t: 0.48, side: -1, angleOffset: -0.66, scale: 0.75, delayOffset: 0.3 },
+          { t: 0.48, side: -1, angleOffset: -0.66, scale: 0.75, delayOffset: 0.2 },
         ],
         flowerScale: 0.5,
-        bloomStartTime: 0.5,
+        bloomStartTime: 0.32,
       },
       {
         id: "right-lower-branch",
@@ -422,13 +446,13 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         endY: 388,
         thicknessStart: 5.0,
         thicknessEnd: 2.5,
-        startTime: 0.25,
-        duration: 0.36,
+        startTime: 0.16,
+        duration: 0.34,
         leaves: [
-          { t: 0.5, side: 1, angleOffset: 0.66, scale: 0.75, delayOffset: 0.32 },
+          { t: 0.5, side: 1, angleOffset: 0.66, scale: 0.75, delayOffset: 0.22 },
         ],
         flowerScale: 0.5,
-        bloomStartTime: 0.52,
+        bloomStartTime: 0.34,
       },
       {
         id: "crown-left-shoot",
@@ -442,13 +466,13 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         endY: 168,
         thicknessStart: 4.2,
         thicknessEnd: 2.2,
-        startTime: 0.28,
-        duration: 0.34,
+        startTime: 0.18,
+        duration: 0.32,
         leaves: [
-          { t: 0.52, side: -1, angleOffset: -0.6, scale: 0.64, delayOffset: 0.36 },
+          { t: 0.52, side: -1, angleOffset: -0.6, scale: 0.64, delayOffset: 0.24 },
         ],
         flowerScale: 0.44,
-        bloomStartTime: 0.54,
+        bloomStartTime: 0.38,
       },
       {
         id: "crown-right-shoot",
@@ -462,13 +486,13 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         endY: 168,
         thicknessStart: 4.2,
         thicknessEnd: 2.2,
-        startTime: 0.3,
-        duration: 0.34,
+        startTime: 0.2,
+        duration: 0.32,
         leaves: [
-          { t: 0.52, side: 1, angleOffset: 0.6, scale: 0.64, delayOffset: 0.38 },
+          { t: 0.52, side: 1, angleOffset: 0.6, scale: 0.64, delayOffset: 0.26 },
         ],
         flowerScale: 0.44,
-        bloomStartTime: 0.56,
+        bloomStartTime: 0.4,
       },
     ];
 
@@ -485,64 +509,60 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       });
     }
 
-    // iPad Safari Canvas Boyut & DPR Senkronizasyonu (Bellek sınırlarını aşmamak için DPR <= 2)
-    const syncCanvasDimensions = () => {
-      const rect = wrapper?.getBoundingClientRect();
-      const rawW =
-        rect && rect.width > 10
-          ? rect.width
-          : window.visualViewport?.width || window.innerWidth || 1024;
-      const rawH =
-        rect && rect.height > 10
-          ? rect.height
-          : window.visualViewport?.height || window.innerHeight || 768;
-
-      const safeW = Math.max(320, Math.round(rawW));
-      const safeH = Math.max(320, Math.round(rawH));
-      viewportSizeRef.current = { width: safeW, height: safeH };
-
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const targetPxW = Math.round(safeW * dpr);
-      const targetPxH = Math.round(safeH * dpr);
-
-      if (canvas.width !== targetPxW || canvas.height !== targetPxH) {
-        canvas.width = targetPxW;
-        canvas.height = targetPxH;
-      }
-    };
-
-    syncCanvasDimensions();
-
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined" && wrapper) {
-      resizeObserver = new ResizeObserver(() => {
-        syncCanvasDimensions();
-      });
-      resizeObserver.observe(wrapper);
-    }
-
-    window.addEventListener("resize", syncCanvasDimensions, { passive: true });
-    window.addEventListener("orientationchange", syncCanvasDimensions, {
-      passive: true,
-    });
-    window.visualViewport?.addEventListener("resize", syncCanvasDimensions, {
-      passive: true,
-    });
-
-    let startTime = performance.now();
-    let hiddenTimestamp: number | null = null;
+    let firstFrameTime: number | null = null;
+    let hiddenAtTime: number | null = null;
     let rafId: number | null = null;
     let isCancelled = false;
+    const orientationTimeouts: number[] = [];
+
+    // Dal büyürken uç kısmında parlayan tomurcuk (0. milisaniyeden itibaren net görünür)
+    const drawGlowingStemBud = (
+      x: number,
+      y: number,
+      scale: number,
+      growthP: number
+    ) => {
+      const r = Math.max(5, 14 * scale * (0.45 + 0.55 * growthP));
+      ctx.save();
+      ctx.translate(x, y);
+
+      const budHalo = ctx.createRadialGradient(0, 0, 1, 0, 0, r * 2.4);
+      budHalo.addColorStop(0, "rgba(255, 248, 252, 0.9)");
+      budHalo.addColorStop(0.45, "rgba(245, 213, 138, 0.65)");
+      budHalo.addColorStop(0.8, "rgba(232, 62, 112, 0.35)");
+      budHalo.addColorStop(1, "rgba(232, 62, 112, 0)");
+      ctx.fillStyle = budHalo;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tomurcuk taç yaprakları
+      const budGrad = ctx.createLinearGradient(0, r, 0, -r);
+      budGrad.addColorStop(0, "#5A1234");
+      budGrad.addColorStop(0.5, "#E83E70");
+      budGrad.addColorStop(0.85, "#FF91B5");
+      budGrad.addColorStop(1, "#F5D58A");
+      ctx.fillStyle = budGrad;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.75, r, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(245, 213, 138, 0.75)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.restore();
+    };
 
     const drawBranch = (
       b: BranchSpec,
       globalProgress: number,
       swayX: number
     ) => {
-      const localP = easeInOutCubic(
+      // easeOutCubic sayesinde t=0 anında hemen hızlıca filizlenir (ölü bölge yoktur)
+      const localP = easeOutCubic(
         (globalProgress - b.startTime) / b.duration
       );
-      if (localP <= 0.005) return null;
+      if (localP <= 0.002) return null;
 
       const steps = 26;
       const maxStep = Math.max(1, Math.floor(steps * localP));
@@ -580,29 +600,29 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         const widthSeg =
           b.thicknessStart + (b.thicknessEnd - b.thicknessStart) * t1;
 
+        // Koyu arka planda ilk andan itibaren parlak ve net görünen gül kurusu-altın gövde rengi
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
         ctx.lineWidth = widthSeg;
         ctx.strokeStyle =
-          t1 < 0.35 ? "#2B1420" : t1 < 0.7 ? "#56203B" : "#8E4362";
+          t1 < 0.35 ? "#6E2246" : t1 < 0.7 ? "#9E3562" : "#C95B82";
         ctx.stroke();
 
-        if (widthSeg > 3) {
-          ctx.beginPath();
-          ctx.moveTo(p1.x + 1, p1.y);
-          ctx.lineTo(p2.x + 1, p2.y);
-          ctx.lineWidth = 1.05;
-          ctx.strokeStyle = "rgba(245, 213, 138, 0.35)";
-          ctx.stroke();
-        }
+        // Altın ışık yansıması çizgisi
+        ctx.beginPath();
+        ctx.moveTo(p1.x + 1, p1.y);
+        ctx.lineTo(p2.x + 1, p2.y);
+        ctx.lineWidth = Math.max(1.0, widthSeg * 0.22);
+        ctx.strokeStyle = "rgba(245, 213, 138, 0.52)";
+        ctx.stroke();
       }
       ctx.restore();
 
       for (const lf of b.leaves) {
         if (localP <= lf.t) continue;
         const leafP = easeOutCubic(
-          (globalProgress - (b.startTime + lf.delayOffset)) / 0.28
+          (globalProgress - (b.startTime + lf.delayOffset)) / 0.26
         );
         if (leafP <= 0.01) continue;
 
@@ -637,13 +657,13 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         ctx.rotate(tangent + lf.angleOffset + swayX * 0.003);
 
         const leafGrad = ctx.createLinearGradient(0, 0, len, 0);
-        leafGrad.addColorStop(0, "#240D1A");
-        leafGrad.addColorStop(0.55, "#591E3C");
-        leafGrad.addColorStop(1, "#B56380");
+        leafGrad.addColorStop(0, "#381226");
+        leafGrad.addColorStop(0.55, "#782850");
+        leafGrad.addColorStop(1, "#D47496");
 
         ctx.fillStyle = leafGrad;
-        ctx.strokeStyle = "rgba(245, 213, 138, 0.62)";
-        ctx.lineWidth = 1.0;
+        ctx.strokeStyle = "rgba(245, 213, 138, 0.68)";
+        ctx.lineWidth = 1.05;
 
         traceChrysanthemumLeaf(ctx, len, wid);
         ctx.fill();
@@ -660,14 +680,14 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         ctx.lineTo(len * 0.72, -wid * 0.52);
         ctx.moveTo(len * 0.54, 0);
         ctx.lineTo(len * 0.72, wid * 0.52);
-        ctx.strokeStyle = "rgba(245, 213, 138, 0.4)";
-        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = "rgba(245, 213, 138, 0.45)";
+        ctx.lineWidth = 0.85;
         ctx.stroke();
 
         ctx.restore();
       }
 
-      return getCubicBezierPoint(
+      const tipPt = getCubicBezierPoint(
         localP,
         b.startX,
         b.startY,
@@ -678,6 +698,11 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         b.endX + swayX,
         b.endY
       );
+
+      // Çiçek henüz tam açmadan önce dalın ucunda parlayan tomurcuk göster
+      drawGlowingStemBud(tipPt.x, tipPt.y, b.flowerScale, localP);
+
+      return tipPt;
     };
 
     const drawRoyalChrysanthemum = (
@@ -688,16 +713,16 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       timeSec: number,
       isMainCenter: boolean
     ) => {
-      if (bloomProgress <= 0.01) return;
+      if (bloomProgress <= 0.005) return;
 
       ctx.save();
       ctx.translate(x, y);
       ctx.scale(scale, scale);
 
-      const auraR = 42 + bloomProgress * 110;
+      const auraR = 45 + bloomProgress * 112;
       const auraGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, auraR);
-      auraGrad.addColorStop(0, "rgba(245, 213, 138, 0.52)");
-      auraGrad.addColorStop(0.48, "rgba(232, 62, 112, 0.28)");
+      auraGrad.addColorStop(0, "rgba(245, 213, 138, 0.55)");
+      auraGrad.addColorStop(0.48, "rgba(232, 62, 112, 0.3)");
       auraGrad.addColorStop(1, "rgba(8, 6, 17, 0)");
       ctx.fillStyle = auraGrad;
       ctx.beginPath();
@@ -712,11 +737,11 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         const p = petals[i];
         const ringNorm = p.ringIndex / (p.totalRings - 1);
         const localRaw = (bloomProgress - p.openDelay) / (1 - p.openDelay);
-        if (localRaw <= 0.01) continue;
+        if (localRaw <= 0.005) continue;
 
         const openT = easeOutCubic(localRaw);
-        const len = p.length * (0.22 + openT * 0.78);
-        const wid = p.width * (0.35 + openT * 0.65);
+        const len = p.length * (0.25 + openT * 0.75);
+        const wid = p.width * (0.38 + openT * 0.62);
         const breathe =
           Math.sin(timeSec * 1.6 + p.ringIndex * 0.6 + i * 0.2) *
           0.014 *
@@ -811,8 +836,8 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.arc(0, 0, 24 * bloomProgress, 0, Math.PI * 2);
       ctx.fill();
 
-      if (isMainCenter && bloomProgress > 0.4) {
-        const heartAlpha = easeOutCubic((bloomProgress - 0.4) / 0.6);
+      if (isMainCenter && bloomProgress > 0.25) {
+        const heartAlpha = easeOutCubic((bloomProgress - 0.25) / 0.75);
         const pulse = 1 + Math.sin(timeSec * 3.4) * 0.08;
         const hRadius = 11.5 * heartAlpha * pulse;
 
@@ -833,55 +858,47 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.restore();
     };
 
-    const scheduleNextFrame = () => {
-      if (isCancelled) return;
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
-      rafId = window.requestAnimationFrame(renderLoop);
-    };
-
-    const renderLoop = (now: number) => {
-      if (isCancelled) return;
-      rafId = null;
-
-      if (document.visibilityState === "hidden") {
-        if (hiddenTimestamp === null) {
-          hiddenTimestamp = now;
-        }
-        scheduleNextFrame();
-        return;
-      } else if (hiddenTimestamp !== null) {
-        // Sekme arka plandan döndüğünde geçen süreyi telafi et
-        startTime += now - hiddenTimestamp;
-        hiddenTimestamp = null;
-      }
-
-      const totalDuration = isReducedMotionRef.current ? 150 : 4400;
-      const elapsed = Math.max(0, now - startTime);
-      const rawProgress = clamp01(elapsed / totalDuration);
-      const timeSec = elapsed * 0.001;
+    const paintSceneFrame = (elapsedMs: number) => {
+      const totalDuration = isReducedMotionRef.current ? 150 : 3400;
+      // İlk karede (0ms) bile %4 başlangıç filizi hazır çizilir; asla siyah/boş ekran olmaz!
+      const rawProgress = clamp01(0.04 + (elapsedMs / totalDuration) * 0.96);
+      const timeSec = elapsedMs * 0.001;
       const swayX = isReducedMotionRef.current
         ? 0
         : Math.sin(timeSec * 1.35) * 4.2;
 
+      // Her karede canlı ekran boyutunu oku (iPad dikey <-> yatay geçişlerinde yarım/siyah ekran kalmasını %100 önler)
+      const { width: vpW, height: vpH } = readLiveViewportSize(wrapper);
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const vpW = viewportSizeRef.current.width;
-      const vpH = viewportSizeRef.current.height;
       const targetPxW = Math.round(vpW * dpr);
       const targetPxH = Math.round(vpH * dpr);
 
       if (canvas.width !== targetPxW || canvas.height !== targetPxH) {
         canvas.width = targetPxW;
         canvas.height = targetPxH;
+        canvas.style.width = `${vpW}px`;
+        canvas.style.height = `${vpH}px`;
       }
 
       ctx.save();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, vpW, vpH);
 
-      // Dikey (Portrait) ve Yatay (Landscape) iPad'de çiçeğin üst rozet ve alt mesajla
-      // çakışmaması için dinamik güvenli alan ölçeklemesi
+      // Kanvasın tamamını her karede kendi romantik bordo-kozmik radial gradientiyle doldur
+      // (Böylece iPad yatay modda veya sayfa yenilemede hiçbir piksel siyah/boş kalmaz!)
+      const bgGrad = ctx.createRadialGradient(
+        vpW * 0.5,
+        vpH * 0.42,
+        10,
+        vpW * 0.5,
+        vpH * 0.45,
+        Math.max(vpW, vpH) * 0.85
+      );
+      bgGrad.addColorStop(0, "#4A102D");
+      bgGrad.addColorStop(0.55, "#160618");
+      bgGrad.addColorStop(1, "#080611");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, vpW, vpH);
+
       const isPortrait = vpH > vpW;
       const maxAvailW = vpW * (isPortrait ? 0.94 : 0.88);
       const maxAvailH = vpH * (isPortrait ? 0.58 : 0.68);
@@ -895,6 +912,17 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.translate(offsetX, offsetY);
       ctx.scale(fitScale, fitScale);
 
+      // 0. Merkez sıcak ışık halesi ve kök tohum ışıltısı (0. milisaniyeden itibaren aktif!)
+      const seedGlow = ctx.createRadialGradient(cx, 320, 8, cx, 360, 260);
+      seedGlow.addColorStop(0, "rgba(232, 62, 112, 0.25)");
+      seedGlow.addColorStop(0.5, "rgba(245, 213, 138, 0.12)");
+      seedGlow.addColorStop(1, "rgba(8, 6, 17, 0)");
+      ctx.fillStyle = seedGlow;
+      ctx.beginPath();
+      ctx.arc(cx, 340, 260, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 1. Dalları, yaprakları ve uç tomurcuklarını çiz
       const tipPositions: {
         branch: BranchSpec;
         pt: { x: number; y: number };
@@ -907,6 +935,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         }
       }
 
+      // 2. Yan kasımpatıları önce, ana Kraliçe Kasımpatıyı en üstte çiz (easeOutCubic ile gecikmesiz açılış)
       const sortedTips = [...tipPositions].sort((a, b) =>
         a.branch.isMainCenter ? 1 : b.branch.isMainCenter ? -1 : 0
       );
@@ -918,11 +947,11 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         if (branch.isMainCenter) {
           mainFlowerPos = pt;
         }
-        const bloomP = easeInOutCubic(
+        const bloomP = easeOutCubic(
           (rawProgress - branch.bloomStartTime) /
             (1 - branch.bloomStartTime)
         );
-        if (bloomP > 0.01) {
+        if (bloomP > 0.005) {
           drawRoyalChrysanthemum(
             pt.x,
             pt.y,
@@ -934,27 +963,27 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         }
       }
 
-      if (rawProgress > 0.42) {
-        const moteOpacity = clamp01((rawProgress - 0.42) / 0.58);
-        for (const m of motes) {
-          const curAngle = m.angle + timeSec * m.speed * 0.35;
-          const r = m.dist + Math.sin(timeSec * 1.5 + m.phase) * 14;
-          const mx = cx + Math.cos(curAngle) * r * 1.25;
-          const my = 285 + Math.sin(curAngle) * r * 0.85;
+      // 3. Altın polen ve yıldız ışıltıları (0. milisaniyeden itibaren görünür)
+      const moteOpacity = 0.45 + 0.55 * rawProgress;
+      for (const m of motes) {
+        const curAngle = m.angle + timeSec * m.speed * 0.35;
+        const r = m.dist + Math.sin(timeSec * 1.5 + m.phase) * 14;
+        const mx = cx + Math.cos(curAngle) * r * 1.25;
+        const my = 285 + Math.sin(curAngle) * r * 0.85;
 
-          ctx.save();
-          ctx.globalAlpha =
-            (0.35 + 0.55 * Math.sin(timeSec * 2.4 + m.phase)) * moteOpacity;
-          ctx.fillStyle = m.color;
-          ctx.beginPath();
-          ctx.arc(mx, my, m.size, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
+        ctx.save();
+        ctx.globalAlpha =
+          (0.38 + 0.55 * Math.sin(timeSec * 2.4 + m.phase)) * moteOpacity;
+        ctx.fillStyle = m.color;
+        ctx.beginPath();
+        ctx.arc(mx, my, m.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
 
       ctx.restore();
 
+      // 4. Tam ekran vektörel kalp geçiş dalgası
       const portalP = heartPortalRef.current.progress;
       if (portalP > 0.001) {
         const screenFlowerX = offsetX + mainFlowerPos.x * fitScale;
@@ -1027,48 +1056,153 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         hasBloomedRef.current = true;
         setStage("bloomed");
 
-        confetti({
-          particleCount: Math.max(
-            28,
-            Math.round(60 * particleMultiplierRef.current)
-          ),
-          spread: 105,
-          origin: { y: 0.45 },
-          colors: ["#F5D58A", "#FF91B5", "#E83E70", "#FFF8FC"],
-          scalar: 1.05,
-        });
+        try {
+          confetti({
+            particleCount: Math.max(
+              24,
+              Math.round(55 * particleMultiplierRef.current)
+            ),
+            spread: 100,
+            origin: { y: 0.45 },
+            colors: ["#F5D58A", "#FF91B5", "#E83E70", "#FFF8FC"],
+            scalar: 1.0,
+          });
+        } catch {
+          // ignore confetti errors
+        }
+      }
+    };
+
+    const scheduleNextFrame = () => {
+      if (isCancelled) return;
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      rafId = window.requestAnimationFrame(renderLoop);
+    };
+
+    const renderLoop = (now: number) => {
+      if (isCancelled) return;
+      rafId = null;
+
+      if (document.visibilityState === "hidden") {
+        if (hiddenAtTime === null) {
+          hiddenAtTime = now;
+        }
+        scheduleNextFrame();
+        return;
+      } else if (hiddenAtTime !== null) {
+        if (firstFrameTime !== null) {
+          firstFrameTime += now - hiddenAtTime;
+        }
+        hiddenAtTime = null;
       }
 
+      if (firstFrameTime === null) {
+        firstFrameTime = now;
+      }
+
+      const elapsed = Math.max(0, now - firstFrameTime);
+      paintSceneFrame(elapsed);
       scheduleNextFrame();
     };
 
+    // 1. SENKRON İLK KARE ÇİZİMİ: İlk requestAnimationFrame'i bile beklemeden
+    // mount anında (0. milisaniyede) ilk kareyi kanvasa çiz (Siyah ekranı %100 engeller!)
+    paintSceneFrame(0);
+    scheduleNextFrame();
+
+    // 2. Fail-safe Watchdog: iPad Düşük Güç Modu veya arka plan kısıtlaması rAF'ı yavaşlatsa bile
+    // en geç 3.8 saniye sonra çiçek açılmış durumuna ("bloomed") geçmeyi garanti et
+    const watchdogTimer = window.setTimeout(() => {
+      if (!isCancelled && !hasBloomedRef.current) {
+        hasBloomedRef.current = true;
+        setStage("bloomed");
+      }
+    }, 3800);
+
+    // 3. iPad Safari Dikey <-> Yatay Döndürme (Orientation Change) Çok Aşamalı Yeniden Boyutlandırma
+    const clearOrientationTimeouts = () => {
+      while (orientationTimeouts.length > 0) {
+        const id = orientationTimeouts.pop();
+        if (id !== undefined) window.clearTimeout(id);
+      }
+    };
+
+    const handleViewportOrOrientationChange = () => {
+      if (isCancelled) return;
+      clearOrientationTimeouts();
+      // iPad Safari'nin 400ms'lik döndürme animasyonu boyunca ve bittiğinde kanvası zorla güncelle
+      for (const delay of [0, 80, 200, 380, 650]) {
+        const tid = window.setTimeout(() => {
+          if (isCancelled) return;
+          const elapsed =
+            firstFrameTime !== null
+              ? Math.max(0, performance.now() - firstFrameTime)
+              : 0;
+          paintSceneFrame(elapsed);
+        }, delay);
+        orientationTimeouts.push(tid);
+      }
+    };
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && wrapper) {
+      resizeObserver = new ResizeObserver(() => {
+        handleViewportOrOrientationChange();
+      });
+      resizeObserver.observe(wrapper);
+    }
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        if (hiddenTimestamp === null) {
-          hiddenTimestamp = performance.now();
+        if (hiddenAtTime === null) {
+          hiddenAtTime = performance.now();
         }
       } else {
-        if (hiddenTimestamp !== null) {
-          startTime += performance.now() - hiddenTimestamp;
-          hiddenTimestamp = null;
+        if (hiddenAtTime !== null && firstFrameTime !== null) {
+          firstFrameTime += performance.now() - hiddenAtTime;
         }
-        syncCanvasDimensions();
+        hiddenAtTime = null;
+        handleViewportOrOrientationChange();
         scheduleNextFrame();
       }
     };
 
-    const handlePageShow = () => {
-      syncCanvasDimensions();
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        // Safari BFCache'den geri dönüldüyse animasyonu temiz şekilde baştan başlat
+        firstFrameTime = null;
+        hiddenAtTime = null;
+        hasBloomedRef.current = false;
+        isTransitioningRef.current = false;
+        heartPortalRef.current.progress = 0;
+        setStage("growing");
+      }
+      handleViewportOrOrientationChange();
       scheduleNextFrame();
     };
 
+    window.addEventListener("resize", handleViewportOrOrientationChange, {
+      passive: true,
+    });
+    window.addEventListener(
+      "orientationchange",
+      handleViewportOrOrientationChange,
+      { passive: true }
+    );
+    window.visualViewport?.addEventListener(
+      "resize",
+      handleViewportOrOrientationChange,
+      { passive: true }
+    );
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("pageshow", handlePageShow);
 
-    scheduleNextFrame();
-
     return () => {
       isCancelled = true;
+      window.clearTimeout(watchdogTimer);
+      clearOrientationTimeouts();
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
         rafId = null;
@@ -1076,9 +1210,15 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
-      window.removeEventListener("resize", syncCanvasDimensions);
-      window.removeEventListener("orientationchange", syncCanvasDimensions);
-      window.visualViewport?.removeEventListener("resize", syncCanvasDimensions);
+      window.removeEventListener("resize", handleViewportOrOrientationChange);
+      window.removeEventListener(
+        "orientationchange",
+        handleViewportOrOrientationChange
+      );
+      window.visualViewport?.removeEventListener(
+        "resize",
+        handleViewportOrOrientationChange
+      );
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pageshow", handlePageShow);
     };
@@ -1094,17 +1234,17 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         paddingTop: "max(1.25rem, env(safe-area-inset-top, 0px))",
         paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 0px))",
       }}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-between min-h-screen min-h-[100dvh] px-4 overflow-hidden bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] select-none ${
+      className={`fixed inset-0 w-full h-full z-50 flex flex-col items-center justify-between min-h-screen min-h-[100dvh] px-4 overflow-hidden bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] select-none ${
         stage === "bloomed" ? "cursor-pointer" : ""
       }`}
     >
       {/* TAM EKRAN Kasımpatı & Vektörel Kalp Geçiş Kanvası */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 w-full h-full pointer-events-none z-10"
+        className="fixed inset-0 w-full h-full pointer-events-none z-10 block"
       />
 
-      {/* Üst Rozet: iPad Dikey & Mobil görünümde sol üstteki Müzik Butonuyla çakışmaması için mt-14 lg:mt-1 */}
+      {/* Üst Rozet */}
       <div className="relative z-20 mt-14 sm:mt-16 lg:mt-1 text-center pointer-events-none px-2">
         <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#190824]/80 border border-[#F5D58A]/35 text-[11px] sm:text-xs uppercase tracking-[0.22em] text-[#F5D58A] shadow-[0_0_20px_rgba(8,6,17,0.6)]">
           <Sparkles className="w-3.5 h-3.5 shrink-0" />
@@ -1113,7 +1253,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         </span>
       </div>
 
-      {/* Orta Boşluk (Çiçek tam ekran kanvasta bu alanda açar) */}
+      {/* Orta Boşluk */}
       <div className="my-auto" />
 
       {/* Alt Romantik Kasımpatı Mesajı ve Geçiş Butonu */}
@@ -1125,7 +1265,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: stage === "transitioning" ? 0 : 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.45 }}
               className="space-y-2.5 flex flex-col items-center"
             >
               <h2 className="font-serif italic font-semibold text-2xl sm:text-3xl md:text-4xl bg-gradient-to-r from-[#FFF8FC] via-[#FF91B5] to-[#F5D58A] bg-clip-text text-transparent drop-shadow-[0_2px_25px_rgba(232,62,112,0.65)]">
@@ -1154,9 +1294,9 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
             <motion.p
               key="growing-status"
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.88 }}
+              animate={{ opacity: 0.92 }}
               exit={{ opacity: 0 }}
-              className="font-serif italic text-base sm:text-xl text-[#F5D58A]/90 tracking-wide"
+              className="font-serif italic text-base sm:text-xl text-[#F5D58A]/95 tracking-wide"
             >
               {UNIVERSE_CONFIG.flowerIntro.growingText}
             </motion.p>

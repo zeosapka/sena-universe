@@ -301,17 +301,17 @@ export function MusicPlayer() {
         paddingLeft: "env(safe-area-inset-left, 0px)",
       }}
     >
-      {/* Çift Deck Gerçek MP3 Oynatıcıları */}
+      {/* Çift Deck Gerçek MP3 Oynatıcıları (preload="metadata" ile ilk sayfa yenilemede çiçek animasyonunu asla bloklamaz) */}
       <audio
         ref={deckARef}
-        preload="auto"
+        preload="metadata"
         onEnded={() => {
           if (!isCrossfadingRef.current) triggerSmoothCrossfade();
         }}
       />
       <audio
         ref={deckBRef}
-        preload="auto"
+        preload="metadata"
         onEnded={() => {
           if (!isCrossfadingRef.current) triggerSmoothCrossfade();
         }}

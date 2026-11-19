@@ -45,12 +45,48 @@ export function FireworksCelebration() {
     const rockets: FireworkRocket[] = [];
     const sparks: FireworkSpark[] = [];
 
+    const orientTimers: number[] = [];
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const vpW = Math.max(
+        320,
+        Math.round(
+          window.visualViewport?.width ||
+            document.documentElement?.clientWidth ||
+            window.innerWidth ||
+            1024
+        )
+      );
+      const vpH = Math.max(
+        320,
+        Math.round(
+          window.visualViewport?.height ||
+            document.documentElement?.clientHeight ||
+            window.innerHeight ||
+            768
+        )
+      );
+      canvas.width = vpW;
+      canvas.height = vpH;
+      canvas.style.width = `${vpW}px`;
+      canvas.style.height = `${vpH}px`;
+    };
+    const handleOrientationResize = () => {
+      while (orientTimers.length > 0) {
+        const id = orientTimers.pop();
+        if (id !== undefined) window.clearTimeout(id);
+      }
+      for (const delay of [0, 100, 250, 450]) {
+        orientTimers.push(window.setTimeout(resizeCanvas, delay));
+      }
     };
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("resize", handleOrientationResize, { passive: true });
+    window.addEventListener("orientationchange", handleOrientationResize, {
+      passive: true,
+    });
+    window.visualViewport?.addEventListener("resize", handleOrientationResize, {
+      passive: true,
+    });
 
     const createExplosion = (
       x: number,
@@ -215,7 +251,13 @@ export function FireworksCelebration() {
     canvas.addEventListener("pointerdown", handleCanvasPointer);
 
     return () => {
-      window.removeEventListener("resize", resizeCanvas);
+      while (orientTimers.length > 0) {
+        const id = orientTimers.pop();
+        if (id !== undefined) window.clearTimeout(id);
+      }
+      window.removeEventListener("resize", handleOrientationResize);
+      window.removeEventListener("orientationchange", handleOrientationResize);
+      window.visualViewport?.removeEventListener("resize", handleOrientationResize);
       canvas.removeEventListener("pointerdown", handleCanvasPointer);
       window.cancelAnimationFrame(animationFrameId);
       window.clearTimeout(launchTimeoutId);
