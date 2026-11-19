@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    background-color: #080611;
+    color: #FFF8FC;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100dvh;
+    overflow-x: hidden;
+    background-color: #080611;
+  }
+}
+
+@keyframes floatUpHeart {
+  0% {
+    transform: translate3d(0, 105vh, 0) scale(0.7) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.28;
+  }
+  80% {
+    opacity: 0.25;
+  }
+  100% {
+    transform: translate3d(20px, -15vh, 0) scale(1.15) rotate(18deg);
+    opacity: 0;
+  }
+}
+
+.ambient-rising-heart {
+  position: absolute;
+  bottom: -10vh;
+  color: #FF91B5;
+  text-shadow: 0 0 12px rgba(232, 62, 112, 0.7);
+  will-change: transform, opacity;
+  animation-name: floatUpHeart;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080611;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4A102D;
+  border-radius: 9999px;
+  border: 1px solid rgba(245, 213, 138, 0.25);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #E83E70;
+}
