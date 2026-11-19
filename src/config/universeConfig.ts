@@ -315,6 +315,92 @@ export const UNIVERSE_CONFIG = {
     },
   },
 
+  // 6.8. Sena'nın Küçük Sürprizleri (5 İnteraktif Hediye Kutusu Bölümü)
+  surpriseGiftsSection: {
+    badgeText: "SÜRPRİZ HEDİYE KUTULARI 🎁",
+    title: "Sena'nın Küçük Sürprizleri 🎁",
+    subtitle:
+      "Senin için birkaç küçük sürpriz sakladım. Bakalım hangisinde ne var? ❤️",
+    openedBadgeText: "Açıldı ✨ • Tekrar Aç",
+    unopenedBadgeText: "Açmak İçin Dokun 🎁",
+    closeModalButtonText: "Hediyelere Dön",
+    closeModalAriaLabel: "Hediye penceresini kapat",
+    boxes: [
+      {
+        id: 1,
+        numberLabel: "1",
+        title: "Sana Bir Mektup 💌",
+        shortHint: "Kalbimden dökülen kısa bir not...",
+        accentColor: "#FF91B5",
+        ribbonColor: "#F5D58A",
+        boxGradient: "from-[#4A102D] via-[#2B0B21] to-[#17081C]",
+        headline: "Sana Küçük Bir Not 💌",
+        message:
+          "Günün hangi saati olursa olsun, aklıma düştüğün her an yüzümde istemsiz bir tebessüm oluşuyor. Senin o güzel kalbin, zarafetin ve içtenliğin bu dünyadaki en nadir hazine. Yeni yaşında her sabah uyandığında ne kadar çok sevildiğini ve ne kadar değerli olduğunu hissetmeni diliyorum. İyi ki doğdun, iyi ki varsın Sena...",
+        subNote: "Her zaman kalbimdesin ❤️",
+      },
+      {
+        id: 2,
+        numberLabel: "2",
+        title: "Sonsuz Çiçekler 🌸",
+        shortHint: "Hiç bitmeyecek bir bahar...",
+        accentColor: "#E83E70",
+        ribbonColor: "#FF91B5",
+        boxGradient: "from-[#5A1236] via-[#310B24] to-[#17071A]",
+        headline: "Sonsuz Çiçekler 🌸",
+        message:
+          "Her çiçek sana olan sevgimi anlatsaydı, bu bahar hiç bitmezdi.",
+        subNote: "Yeni çiçekler açtırmak için bahçeye dokun 🌸",
+      },
+      {
+        id: 3,
+        numberLabel: "3",
+        title: "Küçük Bir Yıldız ✨",
+        shortHint: "Geceyi aydınlatan dilek yıldızın...",
+        accentColor: "#F5D58A",
+        ribbonColor: "#F5D58A",
+        boxGradient: "from-[#3D1230] via-[#220B26] to-[#11071A]",
+        headline: "Küçük Bir Yıldız ✨",
+        message:
+          "Ne zaman gökyüzüne baksan, senin için parlayan bir yıldız olduğunu hatırla.",
+        subNote: "Yıldıza dokunarak gökyüzüne bir dilek izi bırak ✨",
+      },
+      {
+        id: 4,
+        numberLabel: "4",
+        title: "Birlikte Gelecek Hayallerimiz 🌙",
+        shortHint: "Bizi bekleyen güzel günler...",
+        accentColor: "#FF91B5",
+        ribbonColor: "#F5D58A",
+        boxGradient: "from-[#481234] via-[#250A24] to-[#120619]",
+        headline: "Birlikte Gelecek Hayallerimiz 🌙",
+        message:
+          "Henüz yaşanmamış ama hayali bile kalbimi ısıtan o güzel yarınlar... Birlikte izleyeceğimiz gün batımları, keşfedeceğimiz yeni yollar, yıldızların altında edeceğimiz uzun sohbetler ve yan yana kutlayacağımız nice güzel yaşların hayaliyle...",
+        futureDreams: [
+          "🌅 Birlikte izlenecek huzurlu gün batımları",
+          "✈️ Keşfedilecek yeni şehirler ve güzel yolculuklar",
+          "🌌 Yıldızların altında saatlerce sürecek tatlı sohbetler",
+          "🎂 Yan yana, sağlıkla ve mutlulukla kutlanacak nice doğum günleri",
+        ],
+        subNote: "En güzel günlerimiz henüz önünde uzananlar 🌙",
+      },
+      {
+        id: 5,
+        numberLabel: "5",
+        title: "En Büyük Sürpriz ❤️",
+        shortHint: "Kalbinin en özel köşesi...",
+        accentColor: "#F5D58A",
+        ribbonColor: "#E83E70",
+        boxGradient: "from-[#6E153E] via-[#4A102D] to-[#1E081B]",
+        isGrandSpecial: true,
+        headline: "En Büyük Sürpriz ❤️",
+        message:
+          "Sürprizlerin en güzeli sensin Sena. İyi ki varsın, iyi ki hayatımdasın. Seni çok seviyorum.",
+        subNote: "Bütün evrenin en güzel hediyesi sensin ❤️",
+      },
+    ],
+  },
+
   // 7. Son Sürpriz Butonu ve Final (Final Surprise)
   surprise: {
     preTitle: "✦ Bu Gece Gözlerini Kapatmadan Önce ✦",

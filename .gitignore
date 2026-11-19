@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 *.tsbuildinfo
+qr-release/
 
 # Environment & Secrets
 .env

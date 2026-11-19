@@ -295,7 +295,7 @@ export function MusicPlayer() {
 
   return (
     <div
-      className="fixed top-4 left-4 sm:top-5 sm:left-6 md:top-6 md:left-8 z-[60] flex items-center gap-1.5 sm:gap-2 max-w-[calc(100vw-7.5rem)]"
+      className="fixed top-3.5 left-3.5 sm:top-5 sm:left-6 md:top-6 md:left-8 z-[60] flex items-center gap-1.5 sm:gap-2 max-w-[calc(100vw-9.5rem)]"
       style={{
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingLeft: "env(safe-area-inset-left, 0px)",

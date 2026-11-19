@@ -12,6 +12,7 @@ import { InteractiveLoveLetter } from "./components/InteractiveLoveLetter";
 import { FireworksCelebration } from "./components/FireworksCelebration";
 import { OurLittleMoments } from "./components/OurLittleMoments";
 import { SenaGameCorner } from "./components/SenaGameCorner";
+import { SenaSurpriseGifts } from "./components/SenaSurpriseGifts";
 import { FinalSurprise } from "./components/FinalSurprise";
 import { UNIVERSE_CONFIG } from "./config/universeConfig";
 
@@ -72,6 +73,9 @@ export function App() {
 
           {/* 5.5. Sena'nın Oyun Köşesi (Mini Games) */}
           <SenaGameCorner />
+
+          {/* 5.8. Sena'nın Küçük Sürprizleri (5 İnteraktif Hediye Kutusu) */}
+          <SenaSurpriseGifts />
 
           {/* 6. Final Surprise Button & Finale */}
           <FinalSurprise />

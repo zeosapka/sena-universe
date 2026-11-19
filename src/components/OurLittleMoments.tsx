@@ -105,15 +105,19 @@ export function OurLittleMoments() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.6, delay: idx * 0.08 }}
-              className="group relative h-[415px] sm:h-[435px] [perspective:1200px]"
+              className="group relative h-[425px] sm:h-[445px] safari-perspective"
             >
               <div
-                className={`relative w-full h-full rounded-[2rem] transition-transform duration-700 [transform-style:preserve-3d] ${
-                  isFlipped ? "[transform:rotateY(180deg)]" : ""
+                className={`relative w-full h-full rounded-[2rem] transition-transform duration-700 safari-preserve-3d ${
+                  isFlipped ? "safari-rotate-y-180" : ""
                 }`}
               >
                 {/* 3B KART ÖN YÜZÜ */}
-                <div className="absolute inset-0 w-full h-full rounded-[2rem] p-4 flex flex-col justify-between bg-gradient-to-b from-[#1B0B28]/90 to-[#0C0614]/95 backdrop-blur-xl border border-[#F5D58A]/30 shadow-[0_15px_45px_rgba(8,6,17,0.85)] [backface-visibility:hidden]">
+                <div
+                  className={`absolute inset-0 w-full h-full rounded-[2rem] p-4 flex flex-col justify-between bg-gradient-to-b from-[#1B0B28]/90 to-[#0C0614]/95 backdrop-blur-xl border border-[#F5D58A]/30 shadow-[0_15px_45px_rgba(8,6,17,0.85)] safari-backface-hidden ${
+                    isFlipped ? "pointer-events-none" : "pointer-events-auto"
+                  }`}
+                >
                   {/* Fotoğraf / Çerçeve Alanı */}
                   <div
                     onClick={() => toggleFlip(item.id)}
@@ -176,7 +180,11 @@ export function OurLittleMoments() {
                 </div>
 
                 {/* 3B KART ARKA YÜZÜ (ROMANTİK NOT VE MESAJ DÜZENLEME) */}
-                <div className="absolute inset-0 w-full h-full rounded-[2rem] p-6 flex flex-col justify-between bg-gradient-to-br from-[#2B0C20] via-[#150821] to-[#080611] border-2 border-[#F5D58A]/50 shadow-[0_15px_50px_rgba(232,62,112,0.3)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                <div
+                  className={`absolute inset-0 w-full h-full rounded-[2rem] p-6 flex flex-col justify-between bg-gradient-to-br from-[#2B0C20] via-[#150821] to-[#080611] border-2 border-[#F5D58A]/50 shadow-[0_15px_50px_rgba(232,62,112,0.3)] safari-backface-hidden safari-rotate-y-180 ${
+                    isFlipped ? "pointer-events-auto" : "pointer-events-none"
+                  }`}
+                >
                   <div className="flex items-center justify-between border-b border-[#F5D58A]/20 pb-3">
                     <span className="text-xs uppercase tracking-[0.2em] text-[#F5D58A] flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5" />
@@ -242,14 +250,14 @@ export function OurLittleMoments() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSelectedMoment(null)}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-[#080611]/90 backdrop-blur-2xl"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pt-20 sm:p-8 sm:pt-20 bg-[#080611]/90 backdrop-blur-2xl overflow-y-auto"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-3xl rounded-[2.25rem] p-6 sm:p-10 bg-gradient-to-b from-[#1E0C29] to-[#0B0512] border-2 border-[#F5D58A]/50 shadow-[0_25px_90px_rgba(232,62,112,0.45)] overflow-hidden"
+              className="relative w-full max-w-3xl max-h-[85dvh] overflow-y-auto overscroll-contain rounded-[2.25rem] p-5 sm:p-10 bg-gradient-to-b from-[#1E0C29] to-[#0B0512] border-2 border-[#F5D58A]/50 shadow-[0_25px_90px_rgba(232,62,112,0.45)]"
             >
               <div className="flex items-center justify-between pb-4 mb-6 border-b border-[#F5D58A]/20">
                 <div>

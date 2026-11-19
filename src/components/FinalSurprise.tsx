@@ -145,14 +145,18 @@ export function FinalSurprise() {
               </div>
             )}
 
-            {/* Kapatma Butonu */}
+            {/* Kapatma Butonu — Sol üstteki müzik butonuyla asla çakışmaz */}
             <button
               type="button"
               onClick={() => setIsOpen(false)}
               aria-label={UNIVERSE_CONFIG.surprise.closeAriaLabel}
-              className="fixed top-6 right-6 z-50 inline-flex items-center gap-2 px-5 py-3 min-h-[48px] rounded-full bg-[#190924]/85 backdrop-blur-xl border border-[#F5D58A]/45 text-xs sm:text-sm uppercase tracking-[0.2em] text-[#FFF8FC] hover:border-[#F5D58A] transition-all cursor-pointer"
+              style={{
+                marginTop: "env(safe-area-inset-top, 0px)",
+                marginRight: "env(safe-area-inset-right, 0px)",
+              }}
+              className="fixed top-4 right-4 sm:top-5 sm:right-6 md:top-6 md:right-8 z-[65] inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 min-h-[46px] sm:min-h-[48px] rounded-full bg-[#190924]/90 backdrop-blur-xl border border-[#F5D58A]/50 text-xs sm:text-sm uppercase tracking-[0.18em] text-[#FFF8FC] hover:border-[#F5D58A] active:scale-95 transition-all cursor-pointer touch-manipulation"
             >
-              <X className="w-4 h-4 text-[#F5D58A]" />
+              <X className="w-4 h-4 shrink-0 text-[#F5D58A]" />
               <span>{UNIVERSE_CONFIG.surprise.closeButtonText}</span>
             </button>
 

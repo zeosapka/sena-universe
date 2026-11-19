@@ -29,7 +29,7 @@ export function HeroCelebration() {
   return (
     <section
       onPointerMove={handlePointerMove}
-      className="relative min-h-[92dvh] flex flex-col items-center justify-center px-6 py-16 md:py-20 overflow-hidden"
+      className="relative min-h-screen min-h-[92dvh] flex flex-col items-center justify-center px-5 sm:px-6 pt-24 pb-16 sm:pt-28 md:py-24 overflow-hidden"
     >
       {/* Parallax Halkaları */}
       <motion.div

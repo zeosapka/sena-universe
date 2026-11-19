@@ -27,6 +27,14 @@ export function TouchHeartBursts() {
     let nextId = 1;
 
     const handlePointerDown = (e: PointerEvent) => {
+      const targetEl = e.target as HTMLElement | null;
+      if (
+        targetEl &&
+        targetEl.closest("button, [role='button'], a, input, textarea")
+      ) {
+        return;
+      }
+
       // Avoid overwhelming if user clicks rapid-fire
       const count = Math.max(4, Math.round(7 * particleCountMultiplier));
       const newParticles: HeartParticle[] = [];

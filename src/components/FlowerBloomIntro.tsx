@@ -10,20 +10,15 @@ interface FlowerBloomIntroProps {
   onComplete: () => void;
 }
 
-/**
- * Gerçekçi 3B Kraliyet Kasımpatısı (Chrysanthemum) Taç Yaprak Halkası Tanımı
- * Kasımpatı yaprakları dıştan içe doğru sık ve dolgun eşmerkezli halkalar (concentric rings)
- * halinde üst üste binerek yarım küre (dome) formu oluşturur.
- */
 interface ChrysanthemumPetal {
-  ringIndex: number;   // 0 = en dış halka .. 8 = en iç tomurcuk halkası
+  ringIndex: number;
   totalRings: number;
   angle: number;
   length: number;
   width: number;
-  cupCurve: number;    // Yaprağın hafif kaşık/oluk kavisi
-  openDelay: number;   // Dıştan içe doğru katmanlı açılma gecikmesi
-  hueShift: number;    // Doğal ton zenginliği
+  cupCurve: number;
+  openDelay: number;
+  hueShift: number;
 }
 
 interface BranchSpec {
@@ -119,10 +114,6 @@ function getCubicBezierAngle(
   return Math.atan2(dy, dx);
 }
 
-/**
- * Merkez (0, 0) üzerinde tam simetrik, kusursuz vektörel kalp yolu çizer.
- * (Karenin içine sıkışmaz; doğrudan tam ekran kanvas üzerinde vektör olarak büyür)
- */
 function traceCenteredHeartPath(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -167,9 +158,6 @@ function traceCenteredHeartPath(
   ctx.closePath();
 }
 
-/**
- * Zarif, Doğal Boğumlu Botanik Kasımpatı Yaprağı
- */
 function traceChrysanthemumLeaf(
   ctx: CanvasRenderingContext2D,
   len: number,
@@ -177,7 +165,6 @@ function traceChrysanthemumLeaf(
 ) {
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  // Üst kenar yumuşak 3 loblu kasımpatı yaprağı konturu
   ctx.bezierCurveTo(
     len * 0.15,
     -wid * 0.45,
@@ -195,7 +182,6 @@ function traceChrysanthemumLeaf(
     -wid * 0.78
   );
   ctx.bezierCurveTo(len * 0.88, -wid * 0.5, len * 0.96, -wid * 0.2, len, 0);
-  // Alt kenar simetrik 3 loblu kontur
   ctx.bezierCurveTo(
     len * 0.96,
     wid * 0.2,
@@ -231,12 +217,18 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
     "growing"
   );
   const { isReducedMotion, particleCountMultiplier } = usePerformanceProfile();
+
+  // iPad Safari'de yeniden render veya ekran döndürme sırasında animasyonun
+  // sıfırlanmasını / kaybolmasını önlemek için profil değerlerini ref üzerinden okuyoruz
+  const isReducedMotionRef = useRef(isReducedMotion);
+  const particleMultiplierRef = useRef(particleCountMultiplier);
+  isReducedMotionRef.current = isReducedMotion;
+  particleMultiplierRef.current = particleCountMultiplier;
+
   const hasBloomedRef = useRef(false);
   const isTransitioningRef = useRef(false);
-
-  // Geçiş sırasında tam ekran kanvas üzerinde büyüyen vektörel kalp portalı durumu
-  // (0 = kapalı, 1 = kalp tüm ekranı uçtan uca kapladı)
   const heartPortalRef = useRef({ progress: 0 });
+  const viewportSizeRef = useRef({ width: 1024, height: 768 });
 
   const triggerCinematicHeartDive = () => {
     if (isTransitioningRef.current) return;
@@ -244,14 +236,17 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
     setStage("transitioning");
 
     confetti({
-      particleCount: Math.max(40, Math.round(85 * particleCountMultiplier)),
+      particleCount: Math.max(
+        35,
+        Math.round(80 * particleMultiplierRef.current)
+      ),
       spread: 120,
       origin: { y: 0.45 },
       colors: ["#E83E70", "#FF91B5", "#F5D58A", "#FFF8FC"],
       scalar: 1.15,
     });
 
-    if (isReducedMotion) {
+    if (isReducedMotionRef.current) {
       window.setTimeout(onComplete, 450);
       return;
     }
@@ -262,13 +257,11 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       },
     });
 
-    // Tam ekran kanvas üzerinde Kasımpatının tam kalbinden doğup
-    // bütün ekranı kalp şeklinde sararak açılan vektörel geçiş (asla kare/dikdörtgen kesilme yapmaz!)
     tl.to(
       heartPortalRef.current,
       {
         progress: 1,
-        duration: 1.35,
+        duration: 1.32,
         ease: "power3.inOut",
       },
       0
@@ -279,27 +272,27 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         stageWrapperRef.current,
         {
           opacity: 0,
-          duration: 0.38,
+          duration: 0.36,
           ease: "power2.out",
         },
-        1.05
+        1.02
       );
     }
   };
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    const wrapper = stageWrapperRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
-    // 9 Eşmerkezli Halkalı, 152 Taç Yapraklı Dolgun 3B Kraliyet Kasımpatısı (Pompon / Dahlia-Chrysanthemum)
-    // Boşluksuz, üst üste kadife gibi binen gerçekçi kasımpatı dizilimi:
-    const generateChrysanthemumRings = (ringCount: number): ChrysanthemumPetal[] => {
+    const generateChrysanthemumRings = (
+      ringCount: number
+    ): ChrysanthemumPetal[] => {
       const petals: ChrysanthemumPetal[] = [];
       for (let r = 0; r < ringCount; r++) {
-        const ringNorm = r / (ringCount - 1); // 0 = en dış halka, 1 = en iç halka
-        // Her halkada sık ve boşluksuz yaprak sayısı (dışta 22, içte 12)
+        const ringNorm = r / (ringCount - 1);
         const petalsInRing = Math.round(22 - ringNorm * 10);
         const ringAngleOffset = r * GOLDEN_ANGLE;
 
@@ -312,9 +305,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
             ringIndex: r,
             totalRings: ringCount,
             angle: baseAngle + jitter,
-            // Dış halkalar uzun ve kavisli, içe doğru kademeli küçülen yarım küre kubbe yapısı
             length: 98 * (1 - ringNorm * 0.68),
-            // Kasımpatının dolgun kaşık/kayık yaprak genişliği (birbirinin üzerine binerek boşluk bırakmaz)
             width: 26 * (1 - ringNorm * 0.45),
             cupCurve: (p % 2 === 0 ? 1 : -1) * (0.06 + (1 - ringNorm) * 0.05),
             openDelay: ringNorm * 0.42 + (p / petalsInRing) * 0.04,
@@ -325,18 +316,15 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       return petals;
     };
 
-    const mainChrysanthemumPetals = generateChrysanthemumRings(9); // 150+ dolgun taç yaprak
-    const sideChrysanthemumPetals = generateChrysanthemumRings(6); // Yan çiçekler için 100+ yaprak
+    const mainChrysanthemumPetals = generateChrysanthemumRings(9);
+    const sideChrysanthemumPetals = generateChrysanthemumRings(6);
 
-    // Sanal sahne koordinat sistemi (780 x 620 merkezli), ancak kanvas TAM EKRAN (100vw x 100vh)!
-    // Böylece çiçek veya kalp büyüdüğünde asla bir kare kutuya çarpmaz!
     const sceneW = 780;
     const sceneH = 620;
-    const cx = sceneW / 2; // 390
-    const baseY = sceneH - 18; // 602
+    const cx = sceneW / 2;
+    const baseY = sceneH - 18;
 
     const branches: BranchSpec[] = [
-      // 1. ANA MERKEZ GÖVDE (Kraliçe Kasımpatı: 390, 232)
       {
         id: "main-stem",
         startX: cx,
@@ -360,7 +348,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         bloomStartTime: 0.3,
         isMainCenter: true,
       },
-      // 2. SOL ANA YAN DAL (Orta-sol Kasımpatı: 236, 288)
       {
         id: "left-upper-branch",
         startX: cx - 6,
@@ -382,7 +369,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         flowerScale: 0.68,
         bloomStartTime: 0.42,
       },
-      // 3. SAĞ ANA YAN DAL (Orta-sağ Kasımpatı: 544, 284)
       {
         id: "right-upper-branch",
         startX: cx + 4,
@@ -404,7 +390,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         flowerScale: 0.68,
         bloomStartTime: 0.44,
       },
-      // 4. SOL ALT DAL (Sol alt Kasımpatı: 172, 392)
       {
         id: "left-lower-branch",
         startX: cx - 8,
@@ -425,7 +410,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         flowerScale: 0.5,
         bloomStartTime: 0.5,
       },
-      // 5. SAĞ ALT DAL (Sağ alt Kasımpatı: 608, 388)
       {
         id: "right-lower-branch",
         startX: cx + 2,
@@ -446,7 +430,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         flowerScale: 0.5,
         bloomStartTime: 0.52,
       },
-      // 6. SOL ÜST GONCA DALI (302, 168)
       {
         id: "crown-left-shoot",
         startX: cx + 4,
@@ -467,7 +450,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         flowerScale: 0.44,
         bloomStartTime: 0.54,
       },
-      // 7. SAĞ ÜST GONCA DALI (478, 168)
       {
         id: "crown-right-shoot",
         startX: cx + 6,
@@ -503,9 +485,54 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       });
     }
 
-    const startTime = performance.now();
-    const totalDuration = isReducedMotion ? 120 : 4400;
-    let rafId = 0;
+    // iPad Safari Canvas Boyut & DPR Senkronizasyonu (Bellek sınırlarını aşmamak için DPR <= 2)
+    const syncCanvasDimensions = () => {
+      const rect = wrapper?.getBoundingClientRect();
+      const rawW =
+        rect && rect.width > 10
+          ? rect.width
+          : window.visualViewport?.width || window.innerWidth || 1024;
+      const rawH =
+        rect && rect.height > 10
+          ? rect.height
+          : window.visualViewport?.height || window.innerHeight || 768;
+
+      const safeW = Math.max(320, Math.round(rawW));
+      const safeH = Math.max(320, Math.round(rawH));
+      viewportSizeRef.current = { width: safeW, height: safeH };
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const targetPxW = Math.round(safeW * dpr);
+      const targetPxH = Math.round(safeH * dpr);
+
+      if (canvas.width !== targetPxW || canvas.height !== targetPxH) {
+        canvas.width = targetPxW;
+        canvas.height = targetPxH;
+      }
+    };
+
+    syncCanvasDimensions();
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && wrapper) {
+      resizeObserver = new ResizeObserver(() => {
+        syncCanvasDimensions();
+      });
+      resizeObserver.observe(wrapper);
+    }
+
+    window.addEventListener("resize", syncCanvasDimensions, { passive: true });
+    window.addEventListener("orientationchange", syncCanvasDimensions, {
+      passive: true,
+    });
+    window.visualViewport?.addEventListener("resize", syncCanvasDimensions, {
+      passive: true,
+    });
+
+    let startTime = performance.now();
+    let hiddenTimestamp: number | null = null;
+    let rafId: number | null = null;
+    let isCancelled = false;
 
     const drawBranch = (
       b: BranchSpec,
@@ -622,7 +649,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         ctx.fill();
         ctx.stroke();
 
-        // Yaprak damarları
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(len * 0.86, 0);
@@ -654,9 +680,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       );
     };
 
-    /**
-     * 3B Katmanlı, Dolgun, İpek Dokulu Kraliyet Kasımpatısı (Chrysanthemum) Çizimi
-     */
     const drawRoyalChrysanthemum = (
       x: number,
       y: number,
@@ -671,7 +694,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.translate(x, y);
       ctx.scale(scale, scale);
 
-      // Çiçeğin arkasındaki romantik Kasım ışıltı halesi
       const auraR = 42 + bloomProgress * 110;
       const auraGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, auraR);
       auraGrad.addColorStop(0, "rgba(245, 213, 138, 0.52)");
@@ -704,24 +726,20 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         ctx.save();
         ctx.rotate(p.angle + breathe);
 
-        // Her halkanın dibinde derin 3B ortam gölgesi (Ambient Occlusion), uçlarında ipek parlaklığı
         const petalGrad = ctx.createLinearGradient(0, 0, curveX, -len);
         if (ringNorm < 0.28) {
-          // Dış taç halkaları: kadife bordo -> zengin mürdüm pembesi -> ışıltılı gül kurusu uç
           petalGrad.addColorStop(0, "#240515");
           petalGrad.addColorStop(0.38, "#6E1238");
           petalGrad.addColorStop(0.78, "#C92A5D");
           petalGrad.addColorStop(0.95, "#FF85B0");
           petalGrad.addColorStop(1, "#FFD4E5");
         } else if (ringNorm < 0.62) {
-          // Orta taç halkaları: derin yakut -> sıcak kasımpatı pembesi -> altın-sedef uç
           petalGrad.addColorStop(0, "#360820");
           petalGrad.addColorStop(0.36, "#9E1B4E");
           petalGrad.addColorStop(0.75, "#E83E70");
           petalGrad.addColorStop(0.93, "#FFA6C6");
           petalGrad.addColorStop(1, "#F5D58A");
         } else {
-          // İç kubbe halkaları: gül pembesi -> kehribar altını -> sedef beyazı
           petalGrad.addColorStop(0, "#520E2F");
           petalGrad.addColorStop(0.35, "#C72B62");
           petalGrad.addColorStop(0.72, "#FF7EA8");
@@ -731,7 +749,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
 
         ctx.fillStyle = petalGrad;
 
-        // Kasımpatının dolgun, uçları yuvarlatılmış, içe doğru kaşık gibi kıvrılan ipeksi taç yaprağı
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.bezierCurveTo(
@@ -753,7 +770,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         ctx.closePath();
         ctx.fill();
 
-        // Yaprak kenarı zarif ipek ışıltısı
         ctx.strokeStyle =
           ringNorm > 0.55
             ? "rgba(245, 213, 138, 0.68)"
@@ -761,7 +777,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         ctx.lineWidth = ringNorm > 0.55 ? 0.9 : 0.65;
         ctx.stroke();
 
-        // Kasımpatı yaprağının ortasındaki karakteristik 3B oluk/kat çizgisi
         if (len > 18) {
           ctx.beginPath();
           ctx.moveTo(0, -len * 0.14);
@@ -779,8 +794,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         ctx.restore();
       }
 
-      // Çiçeğin Kalp Göbeği: Yama gibi duran sert beyaz çerçeveli çıkartma YERİNE,
-      // kasımpatının en içteki altın yapraklarının arasından süzülen büyüleyici, yumuşak ışıltılı Kalp Özü
       const centerGrad = ctx.createRadialGradient(
         0,
         0,
@@ -820,43 +833,68 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.restore();
     };
 
+    const scheduleNextFrame = () => {
+      if (isCancelled) return;
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      rafId = window.requestAnimationFrame(renderLoop);
+    };
+
     const renderLoop = (now: number) => {
-      const elapsed = now - startTime;
+      if (isCancelled) return;
+      rafId = null;
+
+      if (document.visibilityState === "hidden") {
+        if (hiddenTimestamp === null) {
+          hiddenTimestamp = now;
+        }
+        scheduleNextFrame();
+        return;
+      } else if (hiddenTimestamp !== null) {
+        // Sekme arka plandan döndüğünde geçen süreyi telafi et
+        startTime += now - hiddenTimestamp;
+        hiddenTimestamp = null;
+      }
+
+      const totalDuration = isReducedMotionRef.current ? 150 : 4400;
+      const elapsed = Math.max(0, now - startTime);
       const rawProgress = clamp01(elapsed / totalDuration);
       const timeSec = elapsed * 0.001;
-      const swayX = isReducedMotion ? 0 : Math.sin(timeSec * 1.35) * 4.2;
+      const swayX = isReducedMotionRef.current
+        ? 0
+        : Math.sin(timeSec * 1.35) * 4.2;
 
-      // Kanvası her zaman gerçek tam ekran boyutuna (window.innerWidth x window.innerHeight) senkronla
-      // Böylece kalp yayılırken ASLA bir kare/dikdörtgen sınırına çarpmaz!
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const vpW = window.innerWidth;
-      const vpH = window.innerHeight;
-      if (
-        canvas.width !== Math.round(vpW * dpr) ||
-        canvas.height !== Math.round(vpH * dpr)
-      ) {
-        canvas.width = Math.round(vpW * dpr);
-        canvas.height = Math.round(vpH * dpr);
+      const vpW = viewportSizeRef.current.width;
+      const vpH = viewportSizeRef.current.height;
+      const targetPxW = Math.round(vpW * dpr);
+      const targetPxH = Math.round(vpH * dpr);
+
+      if (canvas.width !== targetPxW || canvas.height !== targetPxH) {
+        canvas.width = targetPxW;
+        canvas.height = targetPxH;
       }
 
       ctx.save();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, vpW, vpH);
 
-      // Sanal 780x620 sahneyi ekranın ortasına orantılı yerleştir
-      const fitScale = Math.min(
-        (vpW * 0.92) / sceneW,
-        (vpH * 0.72) / sceneH,
-        1.15
-      );
+      // Dikey (Portrait) ve Yatay (Landscape) iPad'de çiçeğin üst rozet ve alt mesajla
+      // çakışmaması için dinamik güvenli alan ölçeklemesi
+      const isPortrait = vpH > vpW;
+      const maxAvailW = vpW * (isPortrait ? 0.94 : 0.88);
+      const maxAvailH = vpH * (isPortrait ? 0.58 : 0.68);
+      const fitScale = Math.min(maxAvailW / sceneW, maxAvailH / sceneH, 1.15);
+
       const offsetX = (vpW - sceneW * fitScale) / 2;
-      const offsetY = (vpH - sceneH * fitScale) / 2 - vpH * 0.02;
+      const offsetY =
+        (vpH - sceneH * fitScale) / 2 - vpH * (isPortrait ? 0.01 : 0.02);
 
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(fitScale, fitScale);
 
-      // 1. Dalları ve yaprakları çiz
       const tipPositions: {
         branch: BranchSpec;
         pt: { x: number; y: number };
@@ -869,7 +907,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         }
       }
 
-      // 2. Yan kasımpatıları önce, ana Kraliçe Kasımpatıyı en üstte çiz
       const sortedTips = [...tipPositions].sort((a, b) =>
         a.branch.isMainCenter ? 1 : b.branch.isMainCenter ? -1 : 0
       );
@@ -897,7 +934,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         }
       }
 
-      // 3. Kasımpatıların etrafında uçuşan altın polen ışıltıları
       if (rawProgress > 0.42) {
         const moteOpacity = clamp01((rawProgress - 0.42) / 0.58);
         for (const m of motes) {
@@ -917,18 +953,14 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         }
       }
 
-      ctx.restore(); // Sahne dönüşümünden çık -> Tam Ekran (vpW x vpH) koordinatlarına dön
+      ctx.restore();
 
-      // 4. TAM EKRAN VEKTÖREL KALP GEÇİŞİ (Sıfır kare/dikdörtgen kesilme, sıfır pikselleşme!)
-      // Ana Kasımpatının ekrandaki tam merkez koordinatından doğan eşmerkezli vektör kalpler
-      // büyüyerek ekranın 4 köşesini de tamamen içine alır.
       const portalP = heartPortalRef.current.progress;
       if (portalP > 0.001) {
         const screenFlowerX = offsetX + mainFlowerPos.x * fitScale;
         const screenFlowerY = offsetY + mainFlowerPos.y * fitScale;
         const maxScreenDiag = Math.hypot(vpW, vpH) * 1.45;
 
-        // 3 katmanlı romantik vektör kalp dalgası (Dış altın-pembe, orta gül kurusu, iç sedef-bordo portal)
         const rings = [
           {
             delay: 0,
@@ -956,7 +988,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         for (const ring of rings) {
           const localT = clamp01((portalP - ring.delay) / (1 - ring.delay));
           if (localT <= 0.001) continue;
-          // Üstel büyüme eğrisiyle kalp şekli net olarak görülerek tüm ekranı kaplar
           const easedT = Math.pow(localT, 2.35);
           const heartRadius = 14 * fitScale + easedT * maxScreenDiag;
 
@@ -983,7 +1014,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
           ctx.fillStyle = grad;
           ctx.fill();
 
-          // Kalp büyürken kenarındaki zarif altın ışık konturu
           ctx.lineWidth = Math.max(2, 5 * (1 - localT));
           ctx.strokeStyle = "rgba(245, 213, 138, 0.85)";
           ctx.stroke();
@@ -998,7 +1028,10 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         setStage("bloomed");
 
         confetti({
-          particleCount: Math.max(30, Math.round(65 * particleCountMultiplier)),
+          particleCount: Math.max(
+            28,
+            Math.round(60 * particleMultiplierRef.current)
+          ),
           spread: 105,
           origin: { y: 0.45 },
           colors: ["#F5D58A", "#FF91B5", "#E83E70", "#FFF8FC"],
@@ -1006,12 +1039,50 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         });
       }
 
-      rafId = window.requestAnimationFrame(renderLoop);
+      scheduleNextFrame();
     };
 
-    rafId = window.requestAnimationFrame(renderLoop);
-    return () => window.cancelAnimationFrame(rafId);
-  }, [isReducedMotion, particleCountMultiplier]);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        if (hiddenTimestamp === null) {
+          hiddenTimestamp = performance.now();
+        }
+      } else {
+        if (hiddenTimestamp !== null) {
+          startTime += performance.now() - hiddenTimestamp;
+          hiddenTimestamp = null;
+        }
+        syncCanvasDimensions();
+        scheduleNextFrame();
+      }
+    };
+
+    const handlePageShow = () => {
+      syncCanvasDimensions();
+      scheduleNextFrame();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pageshow", handlePageShow);
+
+    scheduleNextFrame();
+
+    return () => {
+      isCancelled = true;
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      window.removeEventListener("resize", syncCanvasDimensions);
+      window.removeEventListener("orientationchange", syncCanvasDimensions);
+      window.visualViewport?.removeEventListener("resize", syncCanvasDimensions);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, []);
 
   return (
     <div
@@ -1019,22 +1090,26 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       onClick={() => {
         if (stage === "bloomed") triggerCinematicHeartDive();
       }}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-between min-h-[100dvh] px-4 py-5 sm:py-7 overflow-hidden bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] select-none ${
+      style={{
+        paddingTop: "max(1.25rem, env(safe-area-inset-top, 0px))",
+        paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 0px))",
+      }}
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-between min-h-screen min-h-[100dvh] px-4 overflow-hidden bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] select-none ${
         stage === "bloomed" ? "cursor-pointer" : ""
       }`}
     >
-      {/* TAM EKRAN (100vw x 100vh) Kasımpatı & Vektörel Kalp Geçiş Kanvası — Asla kare kutu sınırı oluşturmaz */}
+      {/* TAM EKRAN Kasımpatı & Vektörel Kalp Geçiş Kanvası */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 w-screen h-screen pointer-events-none z-10"
+        className="fixed inset-0 w-full h-full pointer-events-none z-10"
       />
 
-      {/* Üst Rozet: 21 Kasım & Kasımpatı Vurgusu */}
-      <div className="relative z-20 pt-1 text-center pointer-events-none">
-        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#190824]/75 border border-[#F5D58A]/30 text-[11px] sm:text-xs uppercase tracking-[0.24em] text-[#F5D58A]">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>{UNIVERSE_CONFIG.flowerIntro.badgeText}</span>
-          <Sparkles className="w-3.5 h-3.5" />
+      {/* Üst Rozet: iPad Dikey & Mobil görünümde sol üstteki Müzik Butonuyla çakışmaması için mt-14 lg:mt-1 */}
+      <div className="relative z-20 mt-14 sm:mt-16 lg:mt-1 text-center pointer-events-none px-2">
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#190824]/80 border border-[#F5D58A]/35 text-[11px] sm:text-xs uppercase tracking-[0.22em] text-[#F5D58A] shadow-[0_0_20px_rgba(8,6,17,0.6)]">
+          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{UNIVERSE_CONFIG.flowerIntro.badgeText}</span>
+          <Sparkles className="w-3.5 h-3.5 shrink-0" />
         </span>
       </div>
 
@@ -1042,7 +1117,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       <div className="my-auto" />
 
       {/* Alt Romantik Kasımpatı Mesajı ve Geçiş Butonu */}
-      <div className="relative z-30 min-h-[135px] sm:min-h-[155px] flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-4 pb-1">
+      <div className="relative z-30 min-h-[130px] sm:min-h-[150px] flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-4 pb-2">
         <AnimatePresence mode="wait">
           {stage !== "growing" ? (
             <motion.div
@@ -1068,9 +1143,9 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
                     e.stopPropagation();
                     triggerCinematicHeartDive();
                   }}
-                  className="group inline-flex items-center gap-2.5 px-7 py-3.5 min-h-[50px] rounded-full bg-gradient-to-r from-[#4A102D] via-[#E83E70] to-[#4A102D] bg-[length:200%_100%] hover:bg-right border border-[#F5D58A]/70 text-xs sm:text-sm uppercase tracking-[0.2em] font-semibold text-[#FFF8FC] shadow-[0_0_35px_rgba(232,62,112,0.55)] hover:scale-105 active:scale-95 transition-all duration-500 cursor-pointer"
+                  className="group inline-flex items-center gap-2.5 px-7 py-3.5 min-h-[52px] rounded-full bg-gradient-to-r from-[#4A102D] via-[#E83E70] to-[#4A102D] bg-[length:200%_100%] hover:bg-right border border-[#F5D58A]/70 text-xs sm:text-sm uppercase tracking-[0.2em] font-semibold text-[#FFF8FC] shadow-[0_0_35px_rgba(232,62,112,0.55)] hover:scale-105 active:scale-95 transition-all duration-500 cursor-pointer touch-manipulation"
                 >
-                  <Heart className="w-4 h-4 text-[#F5D58A] fill-[#F5D58A] animate-pulse" />
+                  <Heart className="w-4 h-4 text-[#F5D58A] fill-[#F5D58A] animate-pulse shrink-0" />
                   <span>{UNIVERSE_CONFIG.flowerIntro.touchHeartButtonText}</span>
                 </button>
               </div>
@@ -1081,7 +1156,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.88 }}
               exit={{ opacity: 0 }}
-              className="font-serif italic text-lg sm:text-xl text-[#F5D58A]/90 tracking-wide"
+              className="font-serif italic text-base sm:text-xl text-[#F5D58A]/90 tracking-wide"
             >
               {UNIVERSE_CONFIG.flowerIntro.growingText}
             </motion.p>

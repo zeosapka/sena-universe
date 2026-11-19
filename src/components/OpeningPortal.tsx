@@ -222,7 +222,11 @@ export function OpeningPortal({ onEnterUniverse }: OpeningPortalProps) {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center min-h-[100dvh] px-6 py-8 overflow-hidden bg-[radial-gradient(circle_at_center,#4A102D_0%,#080611_70%)] select-none"
+      style={{
+        paddingTop: "max(4.75rem, env(safe-area-inset-top, 0px))",
+        paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
+      }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center min-h-screen min-h-[100dvh] px-5 sm:px-6 overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_center,#4A102D_0%,#080611_70%)] select-none"
     >
       {/* TAM EKRAN (100vw x 100vh) Vektörel Kalp Geçiş Kanvası — Asla kare kutu kesilmesi yapmaz */}
       <canvas
