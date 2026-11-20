@@ -48,27 +48,15 @@ export function FireworksCelebration() {
     const orientTimers: number[] = [];
     const resizeCanvas = () => {
       const vpW = Math.max(
-        320,
-        Math.round(
-          window.visualViewport?.width ||
-            document.documentElement?.clientWidth ||
-            window.innerWidth ||
-            1024
-        )
+        300,
+        Math.round(canvas.clientWidth || window.innerWidth || 1024)
       );
       const vpH = Math.max(
-        320,
-        Math.round(
-          window.visualViewport?.height ||
-            document.documentElement?.clientHeight ||
-            window.innerHeight ||
-            768
-        )
+        300,
+        Math.round(canvas.clientHeight || window.innerHeight || 768)
       );
       canvas.width = vpW;
       canvas.height = vpH;
-      canvas.style.width = `${vpW}px`;
-      canvas.style.height = `${vpH}px`;
     };
     const handleOrientationResize = () => {
       while (orientTimers.length > 0) {

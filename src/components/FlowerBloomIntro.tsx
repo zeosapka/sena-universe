@@ -204,39 +204,23 @@ function traceChrysanthemumLeaf(
   ctx.closePath();
 }
 
-function readLiveViewportSize(wrapper: HTMLDivElement | null): {
+function readLiveCanvasCssSize(
+  canvas: HTMLCanvasElement,
+  wrapper: HTMLDivElement | null
+): {
   width: number;
   height: number;
 } {
-  const vvW = window.visualViewport?.width || 0;
-  const vvH = window.visualViewport?.height || 0;
-  const docW = document.documentElement?.clientWidth || 0;
-  const docH = document.documentElement?.clientHeight || 0;
-  const winW = window.innerWidth || 0;
-  const winH = window.innerHeight || 0;
-  const wrapW = wrapper?.clientWidth || 0;
-  const wrapH = wrapper?.clientHeight || 0;
-
-  const rawW =
-    vvW > 100
-      ? vvW
-      : winW > 100
-      ? winW
-      : docW > 100
-      ? docW
-      : wrapW || 1024;
-  const rawH =
-    vvH > 100
-      ? vvH
-      : winH > 100
-      ? winH
-      : docH > 100
-      ? docH
-      : wrapH || 768;
+  // ÖNEMLİ: Canvas veya wrapper üzerinde inline style.width kullanılmadığı için
+  // canvas.clientWidth ve clientHeight tarayıcının gerçek CSS layout kutusunu (left:0, right:0) verir.
+  const cW = canvas.clientWidth || wrapper?.clientWidth || 0;
+  const cH = canvas.clientHeight || wrapper?.clientHeight || 0;
+  const docW = document.documentElement?.clientWidth || window.innerWidth || 1024;
+  const docH = document.documentElement?.clientHeight || window.innerHeight || 768;
 
   return {
-    width: Math.max(320, Math.round(rawW)),
-    height: Math.max(320, Math.round(rawH)),
+    width: Math.max(300, Math.round(cW > 100 ? cW : docW)),
+    height: Math.max(300, Math.round(cH > 100 ? cH : docH)),
   };
 }
 
@@ -873,7 +857,9 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         ? 0
         : Math.sin(timeSec * 1.35) * 4.2;
 
-      const { width: vpW, height: vpH } = readLiveViewportSize(wrapper);
+      // Yalnızca canvas pixel buffer (width/height attribute) güncellenir;
+      // inline canvas.style.width ASLA atanmaz (yatay/dikey geçişte ekranı kilitlememesi için!)
+      const { width: vpW, height: vpH } = readLiveCanvasCssSize(canvas, wrapper);
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const targetPxW = Math.round(vpW * dpr);
       const targetPxH = Math.round(vpH * dpr);
@@ -881,8 +867,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       if (canvas.width !== targetPxW || canvas.height !== targetPxH) {
         canvas.width = targetPxW;
         canvas.height = targetPxH;
-        canvas.style.width = `${vpW}px`;
-        canvas.style.height = `${vpH}px`;
       }
 
       ctx.save();
@@ -903,16 +887,16 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, vpW, vpH);
 
-      // Üst rozet ve alttaki "Kasımpatının Kalbine Dokun" mesaj/buton alanı için
-      // garantili güvenli dikey bantlar ayır (çiçek ve yazı asla üst üste binmez ve yazı alttan taşmaz!)
+      // Üst rozet (iPad yatay 1024-1180px dahil sol üst müzik çaların altında güvenli alanda)
+      // ve alttaki "Kasımpatının Kalbine Dokun" mesaj/buton alanı için garantili dikey bantlar
       const isPortrait = vpH > vpW;
       const isShortScreen = vpH < 750;
-      const topReservedPx = vpW < 1024 ? (isShortScreen ? 76 : 94) : 58;
+      const topReservedPx = vpW < 1280 ? (isShortScreen ? 86 : 98) : 58;
       const bottomReservedPx = isShortScreen
-        ? 156
+        ? 154
         : isPortrait
-        ? 198
-        : 176;
+        ? 196
+        : 174;
 
       const availFlowerH = Math.max(
         180,
@@ -1242,13 +1226,11 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         if (stage === "bloomed") triggerCinematicHeartDive();
       }}
       style={{
-        width: "var(--app-width, 100%)",
-        height: "var(--app-height, 100dvh)",
         paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))",
         paddingBottom:
           "max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.85rem))",
       }}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-between px-4 overflow-hidden bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] select-none ${
+      className={`fixed inset-0 w-full h-full z-50 flex flex-col items-center justify-between px-4 overflow-hidden bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] select-none ${
         stage === "bloomed" ? "cursor-pointer" : ""
       }`}
     >
@@ -1258,13 +1240,9 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         className="fixed inset-0 w-full h-full pointer-events-none z-10 block"
       />
 
-      {/* Üst Rozet: iPad dikey/küçük ekranlarda sol üstteki müzik kontrolünün altında güvenli mesafede */}
-      <div
-        className={`relative z-20 text-center pointer-events-none px-2 shrink-0 ${
-          viewport.width < 1024 ? "mt-12 sm:mt-13" : "mt-1"
-        }`}
-      >
-        <span className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-[#190824]/85 border border-[#F5D58A]/35 text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[#F5D58A] shadow-[0_0_20px_rgba(8,6,17,0.65)]">
+      {/* Üst Rozet: iPad dikey ve yatay (1024px-1180px) ekranlarda sol üstteki müzik çaların altında güvenli mesafede */}
+      <div className="relative z-20 mt-13 sm:mt-14 xl:mt-1.5 text-center pointer-events-none px-2 shrink-0 max-w-full">
+        <span className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-[#190824]/85 border border-[#F5D58A]/35 text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[#F5D58A] shadow-[0_0_20px_rgba(8,6,17,0.65)] max-w-full">
           <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
           <span className="truncate">{UNIVERSE_CONFIG.flowerIntro.badgeText}</span>
           <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />

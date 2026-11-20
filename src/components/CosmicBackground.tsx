@@ -1,113 +1,132 @@
-import { useEffect, useState } from "react";
-import Particles, { initParticlesEngine } from "@tsparticles/react";
-import { loadSlim } from "@tsparticles/slim";
-import type { ISourceOptions } from "@tsparticles/engine";
+import { useEffect, useRef } from "react";
 import { usePerformanceProfile } from "../hooks/usePerformanceProfile";
-import { useViewportMetrics } from "../hooks/useViewportMetrics";
 
-let engineInitPromise: Promise<void> | null = null;
+interface CosmicStar {
+  xNorm: number; // 0..1 normalized X (orientation değişiminde anında yeni genişliğe yayılır!)
+  yNorm: number; // 0..1 normalized Y
+  size: number;
+  speedY: number;
+  twinkleSpeed: number;
+  twinklePhase: number;
+  color: string;
+  isSparkle: boolean;
+}
+
+const STAR_COLORS = ["#FFF8FC", "#F5D58A", "#FF91B5", "#E83E70"];
 
 export function CosmicBackground() {
-  const [engineReady, setEngineReady] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { particleCountMultiplier, isReducedMotion } = usePerformanceProfile();
-  const viewport = useViewportMetrics();
+  const isReducedMotionRef = useRef(isReducedMotion);
+  isReducedMotionRef.current = isReducedMotion;
 
   useEffect(() => {
-    let mounted = true;
-    if (!engineInitPromise) {
-      engineInitPromise = initParticlesEngine(async (engine) => {
-        await loadSlim(engine);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
+
+    const starCount = Math.max(28, Math.round(72 * particleCountMultiplier));
+    const stars: CosmicStar[] = [];
+
+    for (let i = 0; i < starCount; i++) {
+      stars.push({
+        xNorm: ((i * 73 + 17) % 100) / 100 + (Math.random() * 0.02 - 0.01),
+        yNorm: ((i * 41 + 29) % 100) / 100,
+        size: 1.1 + (i % 4) * 0.65,
+        speedY: 0.00012 + (i % 5) * 0.00006,
+        twinkleSpeed: 1.2 + (i % 4) * 0.55,
+        twinklePhase: i * 0.85,
+        color: STAR_COLORS[i % STAR_COLORS.length],
+        isSparkle: i % 5 === 0,
       });
     }
-    engineInitPromise
-      .then(() => {
-        if (mounted) setEngineReady(true);
-      })
-      .catch(() => {
-        // Fallback CSS stars remain visible if tsParticles fails
-      });
+
+    let rafId: number | null = null;
+    let isCancelled = false;
+
+    const renderStars = (now: number) => {
+      if (isCancelled) return;
+
+      // ÖNEMLİ: canvas.style.width / height ASLA inline piksel olarak atanmaz!
+      // CSS (w-full h-full) tarayıcı tarafından yönetilir; biz yalnızca clientWidth/Height okuruz.
+      const cssW = Math.max(300, canvas.clientWidth || window.innerWidth || 1024);
+      const cssH = Math.max(300, canvas.clientHeight || window.innerHeight || 768);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const bufW = Math.round(cssW * dpr);
+      const bufH = Math.round(cssH * dpr);
+
+      if (canvas.width !== bufW || canvas.height !== bufH) {
+        canvas.width = bufW;
+        canvas.height = bufH;
+      }
+
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssW, cssH);
+
+      const timeSec = now * 0.001;
+
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        if (!isReducedMotionRef.current) {
+          s.yNorm -= s.speedY;
+          if (s.yNorm < -0.02) {
+            s.yNorm = 1.02;
+          }
+        }
+
+        const x = s.xNorm * cssW;
+        const y = s.yNorm * cssH;
+        const alpha = isReducedMotionRef.current
+          ? 0.55
+          : 0.22 + 0.65 * (0.5 + 0.5 * Math.sin(timeSec * s.twinkleSpeed + s.twinklePhase));
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = s.color;
+
+        if (s.isSparkle) {
+          const r = s.size * 1.45;
+          ctx.beginPath();
+          ctx.moveTo(x, y - r);
+          ctx.lineTo(x + r * 0.25, y - r * 0.25);
+          ctx.lineTo(x + r, y);
+          ctx.lineTo(x + r * 0.25, y + r * 0.25);
+          ctx.lineTo(x, y + r);
+          ctx.lineTo(x - r * 0.25, y + r * 0.25);
+          ctx.lineTo(x - r, y);
+          ctx.lineTo(x - r * 0.25, y - r * 0.25);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.arc(x, y, s.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      ctx.restore();
+      rafId = window.requestAnimationFrame(renderStars);
+    };
+
+    rafId = window.requestAnimationFrame(renderStars);
 
     return () => {
-      mounted = false;
+      isCancelled = true;
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
     };
-  }, []);
-
-  const starCount = Math.max(25, Math.round(75 * particleCountMultiplier));
-
-  const options: ISourceOptions = {
-    fullScreen: { enable: false },
-    fpsLimit: 60,
-    detectRetina: true,
-    particles: {
-      number: {
-        value: starCount,
-        density: {
-          enable: true,
-          width: 1200,
-          height: 800,
-        },
-      },
-      color: {
-        value: ["#FFF8FC", "#F5D58A", "#FF91B5", "#E83E70"],
-      },
-      shape: {
-        type: ["circle", "star"],
-      },
-      opacity: {
-        value: { min: 0.2, max: 0.85 },
-        animation: {
-          enable: !isReducedMotion,
-          speed: 0.8,
-          sync: false,
-        },
-      },
-      size: {
-        value: { min: 1, max: 3.2 },
-        animation: {
-          enable: !isReducedMotion,
-          speed: 1.4,
-          sync: false,
-        },
-      },
-      move: {
-        enable: !isReducedMotion,
-        speed: { min: 0.15, max: 0.55 },
-        direction: "top",
-        random: true,
-        straight: false,
-        outModes: {
-          default: "out",
-        },
-      },
-    },
-    interactivity: {
-      events: {
-        onHover: {
-          enable: !isReducedMotion,
-          mode: "bubble",
-        },
-      },
-      modes: {
-        bubble: {
-          distance: 130,
-          size: 4.5,
-          duration: 2,
-          opacity: 0.9,
-        },
-      },
-    },
-  };
+  }, [particleCountMultiplier]);
 
   return (
     <div
-      style={{
-        width: "var(--app-width, 100%)",
-        height: "var(--app-height, 100dvh)",
-      }}
-      className="fixed inset-0 pointer-events-none z-0 overflow-hidden"
+      className="fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden"
       aria-hidden="true"
     >
-      {/* iPad Safari GPU Tile Memory Dostu Çok Katmanlı Romantik Nebula Gradienti */}
+      {/* iPad Safari & Chrome (CriOS) Dostu Çok Katmanlı Romantik Nebula Gradienti */}
       <div
         className="absolute inset-0 w-full h-full"
         style={{
@@ -120,15 +139,11 @@ export function CosmicBackground() {
         }}
       />
 
-      {/* tsParticles Starfield (orientationVersion değiştiğinde yeni ekran oranına göre yeniden yerleşir) */}
-      {engineReady && (
-        <Particles
-          key={`stars-${viewport.orientationVersion}`}
-          id="sena-cosmic-stars"
-          className="absolute inset-0 w-full h-full"
-          options={options}
-        />
-      )}
+      {/* Normalize Koordinatlı (0..1) Yıldız Kanvası: Yön değişiminde inline piksel kilidi olmadan anında yeni boyuta yayılır */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full block pointer-events-none"
+      />
 
       {/* Subtle Rising Ambient Hearts (GPU-accelerated CSS) */}
       {!isReducedMotion && (

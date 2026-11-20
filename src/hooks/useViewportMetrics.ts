@@ -19,23 +19,20 @@ function readCurrentViewport(version: number): ViewportMetrics {
     };
   }
 
-  const vv = window.visualViewport;
   const docEl = document.documentElement;
+  const vv = window.visualViewport;
 
-  // iPad Safari'de visualViewport gerçek görünür alanı (adres çubuğu hariç) en doğru şekilde verir
-  const rawW =
-    vv && vv.width > 100
-      ? vv.width
-      : window.innerWidth > 100
-      ? window.innerWidth
-      : docEl?.clientWidth || 1024;
+  // CSS layout genişliğini kilitlememek için clientWidth ve innerWidth'i referans al
+  const clientW = docEl?.clientWidth || 0;
+  const innerW = window.innerWidth || 0;
+  const vvW = vv?.width || 0;
 
-  const rawH =
-    vv && vv.height > 100
-      ? vv.height
-      : window.innerHeight > 100
-      ? window.innerHeight
-      : docEl?.clientHeight || 768;
+  const clientH = docEl?.clientHeight || 0;
+  const innerH = window.innerHeight || 0;
+  const vvH = vv?.height || 0;
+
+  const rawW = clientW > 100 ? clientW : innerW > 100 ? innerW : vvW || 1024;
+  const rawH = vvH > 100 ? vvH : innerH > 100 ? innerH : clientH || 768;
 
   const width = Math.max(320, Math.round(rawW));
   const height = Math.max(320, Math.round(rawH));
@@ -51,15 +48,6 @@ function readCurrentViewport(version: number): ViewportMetrics {
   };
 }
 
-function applyCssViewportVars(metrics: ViewportMetrics) {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  root.style.setProperty("--app-width", `${metrics.width}px`);
-  root.style.setProperty("--app-height", `${metrics.height}px`);
-}
-
-// Tekil (Singleton) abonelik yöneticisi: Birden fazla bileşen kullansa bile
-// window üzerinde yalnızca tek bir listener grubu çalışır, bellek sızıntısı ve titreme olmaz.
 type Listener = (metrics: ViewportMetrics) => void;
 const subscribers = new Set<Listener>();
 let currentVersion = 1;
@@ -79,7 +67,7 @@ function clearSettlementTimers() {
 function notifySubscribers(forceOrientationBump = false) {
   if (typeof window === "undefined") return;
 
-  // Dikey <-> yatay geçişte Safari'nin yatay kaydırma (scrollX) sapmasını sıfırla
+  // Yön değişiminde oluşabilecek yatay scrollX kaymasını sıfırla
   if (window.scrollX !== 0) {
     window.scrollTo(0, window.scrollY);
   }
@@ -98,8 +86,6 @@ function notifySubscribers(forceOrientationBump = false) {
     next.orientationVersion = currentVersion;
   }
 
-  applyCssViewportVars(next);
-
   if (orientationChanged || sizeChanged || forceOrientationBump) {
     currentMetrics = next;
     subscribers.forEach((fn) => fn(currentMetrics));
@@ -112,11 +98,11 @@ function scheduleOrientationSettlement(isOrientationEvent: boolean) {
 
   notifySubscribers(isOrientationEvent);
 
-  // iPad Safari'nin ~400ms süren ekran döndürme animasyonu boyunca ve tamamlandığında
-  // ölçüleri kademeli olarak doğrula
+  // iPad Safari & iPad Chrome (CriOS) ekran döndürme animasyonu boyunca ve sonrasında
+  // ölçüleri kademeli olarak yeniden oku
   const delays = isOrientationEvent
-    ? [60, 180, 340, 520, 750]
-    : [80, 240];
+    ? [50, 150, 300, 480, 720, 1000]
+    : [60, 200, 420];
 
   for (const delay of delays) {
     const tid = window.setTimeout(() => {
@@ -131,7 +117,6 @@ function initSingletonListeners() {
   isInitialized = true;
 
   currentMetrics = readCurrentViewport(currentVersion);
-  applyCssViewportVars(currentMetrics);
 
   const onResize = () => scheduleOrientationSettlement(false);
   const onOrientation = () => scheduleOrientationSettlement(true);
@@ -143,6 +128,10 @@ function initSingletonListeners() {
   window.visualViewport?.addEventListener("resize", onResize, {
     passive: true,
   });
+
+  if (window.screen?.orientation?.addEventListener) {
+    window.screen.orientation.addEventListener("change", onOrientation);
+  }
 
   const mql = window.matchMedia("(orientation: portrait)");
   if (mql?.addEventListener) {
@@ -162,7 +151,6 @@ export function useViewportMetrics(): ViewportMetrics {
       setMetrics(next);
     };
     subscribers.add(listener);
-    // İlk mount anında güncel ölçüyü senkronla
     notifySubscribers(false);
 
     return () => {

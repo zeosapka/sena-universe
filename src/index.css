@@ -17,20 +17,20 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
     width: 100%;
-    min-width: 100%;
+    max-width: 100%;
     min-height: 100%;
-    overflow-x: clip;
+    overflow-x: hidden;
   }
 
   body {
     width: 100%;
-    min-width: 100%;
+    max-width: 100%;
     min-height: 100vh;
     min-height: -webkit-fill-available;
     min-height: 100dvh;
     margin: 0;
     padding: 0;
-    overflow-x: clip;
+    overflow-x: hidden;
     background-color: #160618;
     background-image: radial-gradient(
       circle at 50% 42%,
@@ -42,10 +42,10 @@
 
   #root {
     width: 100%;
-    min-width: 100%;
+    max-width: 100%;
     min-height: 100vh;
     min-height: 100dvh;
-    overflow-x: clip;
+    overflow-x: hidden;
   }
 
   button,

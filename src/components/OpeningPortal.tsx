@@ -105,22 +105,12 @@ export function OpeningPortal({ onEnterUniverse }: OpeningPortalProps) {
 
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const vpW = Math.max(
-        320,
-        Math.round(
-          window.visualViewport?.width ||
-            document.documentElement?.clientWidth ||
-            window.innerWidth ||
-            1024
-        )
+        300,
+        Math.round(canvas.clientWidth || window.innerWidth || 1024)
       );
       const vpH = Math.max(
-        320,
-        Math.round(
-          window.visualViewport?.height ||
-            document.documentElement?.clientHeight ||
-            window.innerHeight ||
-            768
-        )
+        300,
+        Math.round(canvas.clientHeight || window.innerHeight || 768)
       );
       if (
         canvas.width !== Math.round(vpW * dpr) ||
@@ -128,8 +118,6 @@ export function OpeningPortal({ onEnterUniverse }: OpeningPortalProps) {
       ) {
         canvas.width = Math.round(vpW * dpr);
         canvas.height = Math.round(vpH * dpr);
-        canvas.style.width = `${vpW}px`;
-        canvas.style.height = `${vpH}px`;
       }
 
       ctx.save();
@@ -243,13 +231,11 @@ export function OpeningPortal({ onEnterUniverse }: OpeningPortalProps) {
     <div
       ref={containerRef}
       style={{
-        width: "var(--app-width, 100%)",
-        height: "var(--app-height, 100dvh)",
         paddingTop: "max(4.25rem, env(safe-area-inset-top, 0px))",
         paddingBottom:
           "max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))",
       }}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center px-5 sm:px-6 overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_center,#4A102D_0%,#080611_70%)] select-none"
+      className="fixed inset-0 w-full h-full z-50 flex flex-col items-center justify-center px-5 sm:px-6 overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_center,#4A102D_0%,#080611_70%)] select-none"
     >
       {/* TAM EKRAN Vektörel Kalp Geçiş Kanvası — Asla kare kutu kesilmesi yapmaz */}
       <canvas

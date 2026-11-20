@@ -23,7 +23,7 @@ export function App() {
   useViewportMetrics();
 
   return (
-    <div className="relative w-full min-w-full min-h-screen min-h-[100dvh] overflow-x-clip bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] text-[#FFF8FC] selection:bg-[#E83E70]/40 selection:text-[#FFF8FC]">
+    <div className="relative w-full max-w-full min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] text-[#FFF8FC] selection:bg-[#E83E70]/40 selection:text-[#FFF8FC]">
       {/* Persistent Cosmic Starfield & Rising Hearts */}
       <CosmicBackground />
 
@@ -49,7 +49,7 @@ export function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1.1, ease: "easeOut" }}
-          className="relative z-10 pb-16"
+          className="relative z-10 w-full max-w-full overflow-x-hidden pb-16"
         >
           {/* 1. Hero Celebration Screen */}
           <HeroCelebration />
