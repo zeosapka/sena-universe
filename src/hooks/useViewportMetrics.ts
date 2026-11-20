@@ -92,10 +92,26 @@ function notifySubscribers(forceOrientationBump = false) {
   }
 }
 
+function forceWebKitViewportResync() {
+  if (typeof document === "undefined") return;
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (meta) {
+    // iPadOS Chrome (CriOS) ve Safari WKWebView yön değişiminde eski 744px / 1133px
+    // zoom/viewport kilidini anında sıfırlamaya zorlar
+    meta.setAttribute(
+      "content",
+      "width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    );
+  }
+}
+
 function scheduleOrientationSettlement(isOrientationEvent: boolean) {
   if (typeof window === "undefined") return;
   clearSettlementTimers();
 
+  if (isOrientationEvent) {
+    forceWebKitViewportResync();
+  }
   notifySubscribers(isOrientationEvent);
 
   // iPad Safari & iPad Chrome (CriOS) ekran döndürme animasyonu boyunca ve sonrasında
@@ -106,6 +122,9 @@ function scheduleOrientationSettlement(isOrientationEvent: boolean) {
 
   for (const delay of delays) {
     const tid = window.setTimeout(() => {
+      if (isOrientationEvent && (delay === 50 || delay === 300)) {
+        forceWebKitViewportResync();
+      }
       notifySubscribers(false);
     }, delay);
     settlementTimers.push(tid);

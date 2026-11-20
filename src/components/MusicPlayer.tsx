@@ -317,16 +317,22 @@ export function MusicPlayer() {
       }
     };
 
+    // capture: true sayesinde e.stopPropagation() kullanan butonlara (örn. "Kasımpatının Kalbine Dokun")
+    // dokunulduğunda bile ilk kullanıcı etkileşimi yakalanır ve iPadOS ses kilidi anında açılır!
     window.addEventListener("pointerdown", handleFirstUserGesture, {
+      capture: true,
       passive: true,
     });
     window.addEventListener("touchend", handleFirstUserGesture, {
+      capture: true,
       passive: true,
     });
     window.addEventListener("click", handleFirstUserGesture, {
+      capture: true,
       passive: true,
     });
     window.addEventListener("keydown", handleFirstUserGesture, {
+      capture: true,
       passive: true,
     });
 
@@ -377,10 +383,18 @@ export function MusicPlayer() {
 
     return () => {
       window.clearTimeout(initTimer);
-      window.removeEventListener("pointerdown", handleFirstUserGesture);
-      window.removeEventListener("touchend", handleFirstUserGesture);
-      window.removeEventListener("click", handleFirstUserGesture);
-      window.removeEventListener("keydown", handleFirstUserGesture);
+      window.removeEventListener("pointerdown", handleFirstUserGesture, {
+        capture: true,
+      });
+      window.removeEventListener("touchend", handleFirstUserGesture, {
+        capture: true,
+      });
+      window.removeEventListener("click", handleFirstUserGesture, {
+        capture: true,
+      });
+      window.removeEventListener("keydown", handleFirstUserGesture, {
+        capture: true,
+      });
       clearFadeTimer();
       if (monitorTimerRef.current !== null) {
         window.clearInterval(monitorTimerRef.current);
