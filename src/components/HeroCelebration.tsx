@@ -1,21 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Heart, ChevronDown } from "lucide-react";
 import { UNIVERSE_CONFIG } from "../config/universeConfig";
 import { usePerformanceProfile } from "../hooks/usePerformanceProfile";
+import { useViewportMetrics } from "../hooks/useViewportMetrics";
 
 export function HeroCelebration() {
   const [parallax, setParallax] = useState({ x: 0, y: 0 });
   const { isReducedMotion } = usePerformanceProfile();
+  const viewport = useViewportMetrics();
+
+  // iPad dikey <-> yatay döndürüldüğünde parallax kaymasını sıfırla (içeriğin kayık kalmasını önler)
+  useEffect(() => {
+    setParallax({ x: 0, y: 0 });
+  }, [viewport.width, viewport.height, viewport.orientationVersion]);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    if (isReducedMotion) return;
+    if (isReducedMotion || e.pointerType !== "mouse") return;
     const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
     const relX = (e.clientX - rect.left) / rect.width - 0.5;
     const relY = (e.clientY - rect.top) / rect.height - 0.5;
     setParallax({
-      x: relX * 26,
-      y: relY * 26,
+      x: relX * 24,
+      y: relY * 24,
     });
   };
 

@@ -15,10 +15,12 @@ import { SenaGameCorner } from "./components/SenaGameCorner";
 import { SenaSurpriseGifts } from "./components/SenaSurpriseGifts";
 import { FinalSurprise } from "./components/FinalSurprise";
 import { UNIVERSE_CONFIG } from "./config/universeConfig";
+import { useViewportMetrics } from "./hooks/useViewportMetrics";
 
 export function App() {
   const [hasFlowerBloomed, setHasFlowerBloomed] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
+  useViewportMetrics();
 
   return (
     <div className="relative w-full min-w-full min-h-screen min-h-[100dvh] overflow-x-clip bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] text-[#FFF8FC] selection:bg-[#E83E70]/40 selection:text-[#FFF8FC]">

@@ -92,6 +92,10 @@ export function FinalSurprise() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.85 }}
+            style={{
+              width: "var(--app-width, 100%)",
+              height: "var(--app-height, 100dvh)",
+            }}
             className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-[radial-gradient(circle_at_center,#2D091D_0%,#080611_75%)] overflow-hidden select-none"
           >
             {/* Yükselen Küçük Kalpler */}

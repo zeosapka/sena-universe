@@ -3,13 +3,14 @@ import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 import type { ISourceOptions } from "@tsparticles/engine";
 import { usePerformanceProfile } from "../hooks/usePerformanceProfile";
+import { useViewportMetrics } from "../hooks/useViewportMetrics";
 
 let engineInitPromise: Promise<void> | null = null;
 
 export function CosmicBackground() {
   const [engineReady, setEngineReady] = useState(false);
-  const [viewportKey, setViewportKey] = useState(0);
   const { particleCountMultiplier, isReducedMotion } = usePerformanceProfile();
+  const viewport = useViewportMetrics();
 
   useEffect(() => {
     let mounted = true;
@@ -26,34 +27,8 @@ export function CosmicBackground() {
         // Fallback CSS stars remain visible if tsParticles fails
       });
 
-    // iPad Safari dikey <-> yatay döndürme sonrasında arka plan kanvasını yeni ekran boyutuna zorla
-    let orientTimeout1: number | null = null;
-    let orientTimeout2: number | null = null;
-
-    const handleOrientationChange = () => {
-      if (orientTimeout1 !== null) window.clearTimeout(orientTimeout1);
-      if (orientTimeout2 !== null) window.clearTimeout(orientTimeout2);
-
-      orientTimeout1 = window.setTimeout(() => {
-        window.dispatchEvent(new Event("resize"));
-      }, 150);
-
-      orientTimeout2 = window.setTimeout(() => {
-        if (mounted) {
-          setViewportKey((prev) => prev + 1);
-        }
-      }, 420);
-    };
-
-    window.addEventListener("orientationchange", handleOrientationChange, {
-      passive: true,
-    });
-
     return () => {
       mounted = false;
-      window.removeEventListener("orientationchange", handleOrientationChange);
-      if (orientTimeout1 !== null) window.clearTimeout(orientTimeout1);
-      if (orientTimeout2 !== null) window.clearTimeout(orientTimeout2);
     };
   }, []);
 
@@ -125,10 +100,14 @@ export function CosmicBackground() {
 
   return (
     <div
-      className="fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden"
+      style={{
+        width: "var(--app-width, 100%)",
+        height: "var(--app-height, 100dvh)",
+      }}
+      className="fixed inset-0 pointer-events-none z-0 overflow-hidden"
       aria-hidden="true"
     >
-      {/* iPad Safari GPU Tile Memory Dostu Çok Katmanlı Romantik Nebula Gradienti (Ağır blur-[150px] katmanları olmadan) */}
+      {/* iPad Safari GPU Tile Memory Dostu Çok Katmanlı Romantik Nebula Gradienti */}
       <div
         className="absolute inset-0 w-full h-full"
         style={{
@@ -141,10 +120,10 @@ export function CosmicBackground() {
         }}
       />
 
-      {/* tsParticles Starfield */}
+      {/* tsParticles Starfield (orientationVersion değiştiğinde yeni ekran oranına göre yeniden yerleşir) */}
       {engineReady && (
         <Particles
-          key={viewportKey}
+          key={`stars-${viewport.orientationVersion}`}
           id="sena-cosmic-stars"
           className="absolute inset-0 w-full h-full"
           options={options}

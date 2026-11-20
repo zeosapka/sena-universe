@@ -6,14 +6,14 @@ const MASTER_VOLUME = 0.68;
 
 export function MusicPlayer() {
   const playlist = UNIVERSE_CONFIG.musicPlaylist;
-  const crossfadeDurationSec = UNIVERSE_CONFIG.crossfadeSeconds || 5.5;
+  const crossfadeDurationSec = UNIVERSE_CONFIG.crossfadeSeconds || 6.0;
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isCrossfading, setIsCrossfading] = useState(false);
 
-  // Çift Deck (Deck A & Deck B) ile DJ tarzı kesintisiz yumuşak Crossfade (Fade-Out + Fade-In) motoru
+  // Çift Deck (Deck A & Deck B) ile kesintisiz yumuşak Crossfade (Fade-Out + Fade-In) motoru
   const deckARef = useRef<HTMLAudioElement | null>(null);
   const deckBRef = useRef<HTMLAudioElement | null>(null);
   const activeDeckKeyRef = useRef<"A" | "B">("A");
@@ -31,6 +31,24 @@ export function MusicPlayer() {
     return key === "A" ? deckARef.current : deckBRef.current;
   };
 
+  const getTrackTargetVolume = (index: number): number => {
+    const track = playlist[index];
+    const scale =
+      track && "volumeScale" in track && typeof track.volumeScale === "number"
+        ? track.volumeScale
+        : 1.0;
+    return Math.max(0, Math.min(1, MASTER_VOLUME * scale));
+  };
+
+  const setDeckVolumeSafe = (deck: HTMLAudioElement | null, vol: number) => {
+    if (!deck) return;
+    try {
+      deck.volume = Math.max(0, Math.min(1, vol));
+    } catch {
+      // iOS/iPadOS Safari donanım ses kilidi durumunda hata fırlatmasını engelle
+    }
+  };
+
   const clearFadeTimer = () => {
     if (fadeTimerRef.current !== null) {
       window.clearInterval(fadeTimerRef.current);
@@ -46,7 +64,8 @@ export function MusicPlayer() {
 
   /**
    * Aktif şarkıdan sıradaki şarkıya yumuşak (Crossfade) geçiş yapar:
-   * Çalan şarkının sesi yavaşça kısılırken (fade-out), yeni şarkı aynı anda yavaşça yükselerek (fade-in) girer.
+   * Çalan şarkının sesi yavaşça kısılırken (fade-out), yeni şarkı kendi dengelenmiş
+   * ses seviyesine yavaşça yükselerek (fade-in) girer.
    */
   const triggerSmoothCrossfade = (targetIndex?: number) => {
     if (playlist.length <= 1) return;
@@ -69,10 +88,11 @@ export function MusicPlayer() {
 
     const nextTrack = playlist[nextIndex];
     const targetSrc = getSafeAudioUrl(nextTrack.src);
+    const incomingTargetVol = getTrackTargetVolume(nextIndex);
 
     incomingDeck.src = targetSrc;
     incomingDeck.muted = isMutedRef.current;
-    incomingDeck.volume = 0.01;
+    setDeckVolumeSafe(incomingDeck, 0.01);
 
     const startIncomingPlayback = () => {
       try {
@@ -82,7 +102,7 @@ export function MusicPlayer() {
           incomingDeck.currentTime = 0;
         }
       } catch {
-        // Metadata henüz yüklenmediyse 0'dan başlar
+        // Metadata henüz hazır değilse 0'dan başlar
       }
 
       incomingDeck
@@ -94,8 +114,11 @@ export function MusicPlayer() {
           isPlayingRef.current = true;
           setIsPlaying(true);
 
-          const startOutVol = outgoingDeck.volume;
-          const totalSteps = Math.max(20, Math.round((crossfadeDurationSec * 1000) / 60));
+          const startOutVol = outgoingDeck.volume || getTrackTargetVolume(currentTrackIndexRef.current);
+          const totalSteps = Math.max(
+            24,
+            Math.round((crossfadeDurationSec * 1000) / 60)
+          );
           let step = 0;
 
           fadeTimerRef.current = window.setInterval(() => {
@@ -104,14 +127,14 @@ export function MusicPlayer() {
             // Yumuşak S-eğrisi (Cosine / Equal-Power) geçişi
             const smoothT = 0.5 - 0.5 * Math.cos(progress * Math.PI);
 
-            outgoingDeck.volume = Math.max(0, startOutVol * (1 - smoothT));
-            incomingDeck.volume = Math.min(MASTER_VOLUME, MASTER_VOLUME * smoothT);
+            setDeckVolumeSafe(outgoingDeck, startOutVol * (1 - smoothT));
+            setDeckVolumeSafe(incomingDeck, incomingTargetVol * smoothT);
 
             if (progress >= 1) {
               clearFadeTimer();
               outgoingDeck.pause();
-              outgoingDeck.volume = 0;
-              incomingDeck.volume = MASTER_VOLUME;
+              setDeckVolumeSafe(outgoingDeck, 0);
+              setDeckVolumeSafe(incomingDeck, incomingTargetVol);
               isCrossfadingRef.current = false;
               setIsCrossfading(false);
             }
@@ -144,10 +167,15 @@ export function MusicPlayer() {
     const activeDeck = getDeck(activeDeckKeyRef.current);
     if (!activeDeck || playlist.length === 0) return;
 
-    const currentTrack = playlist[currentTrackIndexRef.current];
+    const trackIdx = currentTrackIndexRef.current;
+    const currentTrack = playlist[trackIdx];
     const expectedUrl = getSafeAudioUrl(currentTrack.src);
+    const targetVol = getTrackTargetVolume(trackIdx);
 
-    if (!activeDeck.src || !activeDeck.src.endsWith(encodeURI(currentTrack.src))) {
+    if (
+      !activeDeck.src ||
+      !activeDeck.src.endsWith(encodeURI(currentTrack.src))
+    ) {
       activeDeck.src = expectedUrl;
       if (currentTrack.startAtSeconds > 0) {
         try {
@@ -159,7 +187,7 @@ export function MusicPlayer() {
     }
 
     activeDeck.muted = isMutedRef.current;
-    activeDeck.volume = 0.04;
+    setDeckVolumeSafe(activeDeck, 0.04);
 
     activeDeck
       .play()
@@ -167,21 +195,21 @@ export function MusicPlayer() {
         isPlayingRef.current = true;
         setIsPlaying(true);
 
-        // 2.2 saniyelik zarif başlangıç fade-in
+        // 2.4 saniyelik zarif başlangıç fade-in
         clearFadeTimer();
-        const fadeSteps = 28;
+        const fadeSteps = 30;
         let step = 0;
         fadeTimerRef.current = window.setInterval(() => {
           step += 1;
           const p = Math.min(1, step / fadeSteps);
-          activeDeck.volume = MASTER_VOLUME * p;
+          setDeckVolumeSafe(activeDeck, targetVol * p);
           if (p >= 1) {
             clearFadeTimer();
           }
-        }, 75);
+        }, 80);
       })
       .catch(() => {
-        // Tarayıcı ilk tıklamayı bekliyorsa false kalır, ilk tıklamada anında başlar
+        // iPad Safari ilk dokunuşu bekliyorsa false kalır, ilk dokunuşta anında başlar
         isPlayingRef.current = false;
         setIsPlaying(false);
       });
@@ -225,9 +253,10 @@ export function MusicPlayer() {
   };
 
   useEffect(() => {
-    // Sayfa açıldığında hemen başlatmayı dene; tarayıcı otomatik sesi engellerse
-    // kullanıcının ekrana ilk dokunuşunda milisaniyesinde yumuşak fade-in ile başlat
-    ensureCollageStarted();
+    // İlk kare çizimini bloklamamak için bir sonraki animasyon karesinde başlat
+    const rafId = window.requestAnimationFrame(() => {
+      ensureCollageStarted();
+    });
 
     const unlockOnFirstInteraction = () => {
       if (manualPauseRef.current || isPlayingRef.current) return;
@@ -247,8 +276,8 @@ export function MusicPlayer() {
       passive: true,
     });
 
-    // Kolaj zamanlayıcısı: Her şarkı belirlenen kolaj süresinin (veya şarkı sonunun)
-    // bitimine crossfadeSeconds kala sıradaki şarkıya otomatik yumuşak geçiş yapar
+    // Tam süreli şarkı izleyici: Şarkıyı erken kesmez; şarkının tam süresinin (veya doğal bitişinin)
+    // son crossfadeSeconds (6 sn) kısmına gelindiğinde sıradaki şarkıya yumuşak geçiş yapar
     monitorTimerRef.current = window.setInterval(() => {
       if (
         !isPlayingRef.current ||
@@ -263,23 +292,25 @@ export function MusicPlayer() {
 
       const track = playlist[currentTrackIndexRef.current];
       const startSec = track.startAtSeconds || 0;
-      const excerptLen = track.excerptDurationSeconds || 75;
-      const elapsedInExcerpt = activeDeck.currentTime - startSec;
+      const fullPlayLen = track.excerptDurationSeconds || 230;
+      const elapsedInTrack = activeDeck.currentTime - startSec;
 
-      const remainingInFile =
-        Number.isFinite(activeDeck.duration) && activeDeck.duration > 0
-          ? activeDeck.duration - activeDeck.currentTime
-          : 999;
+      const hasValidDuration =
+        Number.isFinite(activeDeck.duration) && activeDeck.duration > 30;
+      const remainingInFile = hasValidDuration
+        ? activeDeck.duration - activeDeck.currentTime
+        : fullPlayLen - elapsedInTrack;
 
       if (
-        elapsedInExcerpt >= excerptLen - crossfadeDurationSec ||
-        remainingInFile <= crossfadeDurationSec + 0.5
+        remainingInFile <= crossfadeDurationSec + 0.8 ||
+        elapsedInTrack >= fullPlayLen - crossfadeDurationSec
       ) {
         triggerSmoothCrossfade();
       }
-    }, 250);
+    }, 350);
 
     return () => {
+      window.cancelAnimationFrame(rafId);
       window.removeEventListener("pointerdown", unlockOnFirstInteraction);
       window.removeEventListener("touchstart", unlockOnFirstInteraction);
       window.removeEventListener("click", unlockOnFirstInteraction);
@@ -301,10 +332,11 @@ export function MusicPlayer() {
         paddingLeft: "env(safe-area-inset-left, 0px)",
       }}
     >
-      {/* Çift Deck Gerçek MP3 Oynatıcıları (preload="metadata" ile ilk sayfa yenilemede çiçek animasyonunu asla bloklamaz) */}
+      {/* Çift Deck Gerçek MP3 Oynatıcıları */}
       <audio
         ref={deckARef}
         preload="metadata"
+        playsInline
         onEnded={() => {
           if (!isCrossfadingRef.current) triggerSmoothCrossfade();
         }}
@@ -312,6 +344,7 @@ export function MusicPlayer() {
       <audio
         ref={deckBRef}
         preload="metadata"
+        playsInline
         onEnded={() => {
           if (!isCrossfadingRef.current) triggerSmoothCrossfade();
         }}
@@ -326,7 +359,7 @@ export function MusicPlayer() {
             ? UNIVERSE_CONFIG.musicPlayer.pauseAriaLabel
             : UNIVERSE_CONFIG.musicPlayer.playAriaLabel
         }
-        className="group flex items-center gap-2 sm:gap-2.5 px-3.5 sm:px-4 py-2 sm:py-2.5 min-h-[46px] sm:min-h-[48px] rounded-full bg-[#12091E]/85 backdrop-blur-xl border border-[#F5D58A]/35 text-[#FFF8FC] shadow-[0_0_25px_rgba(232,62,112,0.28)] hover:border-[#F5D58A]/75 active:scale-95 transition-all duration-300 cursor-pointer"
+        className="group flex items-center gap-2 sm:gap-2.5 px-3.5 sm:px-4 py-2 sm:py-2.5 min-h-[46px] sm:min-h-[48px] rounded-full bg-[#12091E]/85 backdrop-blur-xl border border-[#F5D58A]/35 text-[#FFF8FC] shadow-[0_0_25px_rgba(232,62,112,0.28)] hover:border-[#F5D58A]/75 active:scale-95 transition-all duration-300 cursor-pointer touch-manipulation"
       >
         <span
           className={`relative flex items-center justify-center w-7 h-7 shrink-0 rounded-full ${
@@ -376,7 +409,7 @@ export function MusicPlayer() {
           onClick={handleNextTrackClick}
           title="Sıradaki şarkıya yumuşak geçiş yap"
           aria-label={UNIVERSE_CONFIG.musicPlayer.nextTrackAriaLabel}
-          className="flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-full bg-[#12091E]/85 backdrop-blur-xl border border-[#F5D58A]/30 text-[#F5D58A] hover:border-[#F5D58A]/75 hover:text-[#FFF8FC] active:scale-95 transition-all cursor-pointer"
+          className="flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-full bg-[#12091E]/85 backdrop-blur-xl border border-[#F5D58A]/30 text-[#F5D58A] hover:border-[#F5D58A]/75 hover:text-[#FFF8FC] active:scale-95 transition-all cursor-pointer touch-manipulation"
         >
           <SkipForward className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
@@ -392,7 +425,7 @@ export function MusicPlayer() {
               ? UNIVERSE_CONFIG.musicPlayer.unmuteAriaLabel
               : UNIVERSE_CONFIG.musicPlayer.muteAriaLabel
           }
-          className="flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-full bg-[#12091E]/85 backdrop-blur-xl border border-[#F5D58A]/30 text-[#FFF8FC] hover:border-[#F5D58A]/75 active:scale-95 transition-all cursor-pointer"
+          className="flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-full bg-[#12091E]/85 backdrop-blur-xl border border-[#F5D58A]/30 text-[#FFF8FC] hover:border-[#F5D58A]/75 active:scale-95 transition-all cursor-pointer touch-manipulation"
         >
           {isMuted ? (
             <VolumeX className="w-5 h-5 text-[#FF91B5]" />

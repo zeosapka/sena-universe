@@ -5,6 +5,7 @@ import confetti from "canvas-confetti";
 import { Sparkles, Heart } from "lucide-react";
 import { UNIVERSE_CONFIG } from "../config/universeConfig";
 import { usePerformanceProfile } from "../hooks/usePerformanceProfile";
+import { useViewportMetrics } from "../hooks/useViewportMetrics";
 
 interface OpeningPortalProps {
   onEnterUniverse: () => void;
@@ -61,6 +62,7 @@ export function OpeningPortal({ onEnterUniverse }: OpeningPortalProps) {
   const portalCanvasRef = useRef<HTMLCanvasElement>(null);
   const contentWrapperRef = useRef<HTMLDivElement>(null);
   const { isReducedMotion, particleCountMultiplier } = usePerformanceProfile();
+  const viewport = useViewportMetrics();
 
   const handleEnterClick = () => {
     if (isTransitioning) return;
@@ -241,10 +243,13 @@ export function OpeningPortal({ onEnterUniverse }: OpeningPortalProps) {
     <div
       ref={containerRef}
       style={{
-        paddingTop: "max(4.75rem, env(safe-area-inset-top, 0px))",
-        paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
+        width: "var(--app-width, 100%)",
+        height: "var(--app-height, 100dvh)",
+        paddingTop: "max(4.25rem, env(safe-area-inset-top, 0px))",
+        paddingBottom:
+          "max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))",
       }}
-      className="fixed inset-0 w-full h-full z-50 flex flex-col items-center justify-center min-h-screen min-h-[100dvh] px-5 sm:px-6 overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_center,#4A102D_0%,#080611_70%)] select-none"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center px-5 sm:px-6 overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_center,#4A102D_0%,#080611_70%)] select-none"
     >
       {/* TAM EKRAN Vektörel Kalp Geçiş Kanvası — Asla kare kutu kesilmesi yapmaz */}
       <canvas
@@ -254,14 +259,16 @@ export function OpeningPortal({ onEnterUniverse }: OpeningPortalProps) {
 
       {/* Subtle Ambient Rings */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[22rem] h-[22rem] md:w-[32rem] md:h-[32rem] rounded-full border border-[#F5D58A]/10 animate-ping [animation-duration:6s]" />
-        <div className="absolute w-[16rem] h-[16rem] md:w-[24rem] md:h-[24rem] rounded-full border border-[#E83E70]/20 animate-pulse" />
+        <div className="w-[20rem] h-[20rem] md:w-[30rem] md:h-[30rem] rounded-full border border-[#F5D58A]/10 animate-ping [animation-duration:6s]" />
+        <div className="absolute w-[15rem] h-[15rem] md:w-[22rem] md:h-[22rem] rounded-full border border-[#E83E70]/20 animate-pulse" />
       </div>
 
       {/* Heart Portal Core */}
       <div
         ref={heartCoreRef}
-        className="relative z-20 mb-6 md:mb-8 flex items-center justify-center"
+        className={`relative z-20 flex items-center justify-center ${
+          viewport.isCompactHeight ? "mb-4" : "mb-6 md:mb-8"
+        }`}
       >
         <div className="relative flex items-center justify-center w-24 h-24 md:w-28 md:h-28 rounded-full bg-gradient-to-br from-[#E83E70] via-[#FF91B5] to-[#F5D58A] p-[2px] shadow-[0_0_60px_rgba(232,62,112,0.75)]">
           <div className="flex items-center justify-center w-full h-full rounded-full bg-[#12071D]/90 backdrop-blur-md">

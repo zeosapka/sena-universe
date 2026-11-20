@@ -5,6 +5,7 @@ import confetti from "canvas-confetti";
 import { Heart, Sparkles } from "lucide-react";
 import { UNIVERSE_CONFIG } from "../config/universeConfig";
 import { usePerformanceProfile } from "../hooks/usePerformanceProfile";
+import { useViewportMetrics } from "../hooks/useViewportMetrics";
 
 interface FlowerBloomIntroProps {
   onComplete: () => void;
@@ -207,7 +208,6 @@ function readLiveViewportSize(wrapper: HTMLDivElement | null): {
   width: number;
   height: number;
 } {
-  // iPad Safari'de dikey <-> yatay geçişlerinde en güncel ekran ölçüsünü okur
   const vvW = window.visualViewport?.width || 0;
   const vvH = window.visualViewport?.height || 0;
   const docW = document.documentElement?.clientWidth || 0;
@@ -217,8 +217,22 @@ function readLiveViewportSize(wrapper: HTMLDivElement | null): {
   const wrapW = wrapper?.clientWidth || 0;
   const wrapH = wrapper?.clientHeight || 0;
 
-  const rawW = vvW > 100 ? vvW : winW > 100 ? winW : docW > 100 ? docW : wrapW || 1024;
-  const rawH = vvH > 100 ? vvH : winH > 100 ? winH : docH > 100 ? docH : wrapH || 768;
+  const rawW =
+    vvW > 100
+      ? vvW
+      : winW > 100
+      ? winW
+      : docW > 100
+      ? docW
+      : wrapW || 1024;
+  const rawH =
+    vvH > 100
+      ? vvH
+      : winH > 100
+      ? winH
+      : docH > 100
+      ? docH
+      : wrapH || 768;
 
   return {
     width: Math.max(320, Math.round(rawW)),
@@ -234,6 +248,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
     "growing"
   );
   const { isReducedMotion, particleCountMultiplier } = usePerformanceProfile();
+  const viewport = useViewportMetrics();
 
   const isReducedMotionRef = useRef(isReducedMotion);
   const particleMultiplierRef = useRef(particleCountMultiplier);
@@ -305,7 +320,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
-    // Her mount/refresh'te başlangıç durumunu deterministik olarak sıfırla
     hasBloomedRef.current = false;
     isTransitioningRef.current = false;
     heartPortalRef.current.progress = 0;
@@ -347,7 +361,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
     const cx = sceneW / 2;
     const baseY = sceneH - 18;
 
-    // 0. saniyeden itibaren hemen görünür şekilde yükselen ve erken çiçeklenen dallar
     const branches: BranchSpec[] = [
       {
         id: "main-stem",
@@ -515,7 +528,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
     let isCancelled = false;
     const orientationTimeouts: number[] = [];
 
-    // Dal büyürken uç kısmında parlayan tomurcuk (0. milisaniyeden itibaren net görünür)
     const drawGlowingStemBud = (
       x: number,
       y: number,
@@ -536,7 +548,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.arc(0, 0, r * 2.4, 0, Math.PI * 2);
       ctx.fill();
 
-      // Tomurcuk taç yaprakları
       const budGrad = ctx.createLinearGradient(0, r, 0, -r);
       budGrad.addColorStop(0, "#5A1234");
       budGrad.addColorStop(0.5, "#E83E70");
@@ -558,7 +569,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       globalProgress: number,
       swayX: number
     ) => {
-      // easeOutCubic sayesinde t=0 anında hemen hızlıca filizlenir (ölü bölge yoktur)
       const localP = easeOutCubic(
         (globalProgress - b.startTime) / b.duration
       );
@@ -600,7 +610,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         const widthSeg =
           b.thicknessStart + (b.thicknessEnd - b.thicknessStart) * t1;
 
-        // Koyu arka planda ilk andan itibaren parlak ve net görünen gül kurusu-altın gövde rengi
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
@@ -609,7 +618,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
           t1 < 0.35 ? "#6E2246" : t1 < 0.7 ? "#9E3562" : "#C95B82";
         ctx.stroke();
 
-        // Altın ışık yansıması çizgisi
         ctx.beginPath();
         ctx.moveTo(p1.x + 1, p1.y);
         ctx.lineTo(p2.x + 1, p2.y);
@@ -699,7 +707,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         b.endY
       );
 
-      // Çiçek henüz tam açmadan önce dalın ucunda parlayan tomurcuk göster
       drawGlowingStemBud(tipPt.x, tipPt.y, b.flowerScale, localP);
 
       return tipPt;
@@ -860,14 +867,12 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
 
     const paintSceneFrame = (elapsedMs: number) => {
       const totalDuration = isReducedMotionRef.current ? 150 : 3400;
-      // İlk karede (0ms) bile %4 başlangıç filizi hazır çizilir; asla siyah/boş ekran olmaz!
       const rawProgress = clamp01(0.04 + (elapsedMs / totalDuration) * 0.96);
       const timeSec = elapsedMs * 0.001;
       const swayX = isReducedMotionRef.current
         ? 0
         : Math.sin(timeSec * 1.35) * 4.2;
 
-      // Her karede canlı ekran boyutunu oku (iPad dikey <-> yatay geçişlerinde yarım/siyah ekran kalmasını %100 önler)
       const { width: vpW, height: vpH } = readLiveViewportSize(wrapper);
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const targetPxW = Math.round(vpW * dpr);
@@ -883,11 +888,10 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.save();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // Kanvasın tamamını her karede kendi romantik bordo-kozmik radial gradientiyle doldur
-      // (Böylece iPad yatay modda veya sayfa yenilemede hiçbir piksel siyah/boş kalmaz!)
+      // Kanvas arka planını her karede tam ekran doldur
       const bgGrad = ctx.createRadialGradient(
         vpW * 0.5,
-        vpH * 0.42,
+        vpH * 0.4,
         10,
         vpW * 0.5,
         vpH * 0.45,
@@ -899,20 +903,38 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, vpW, vpH);
 
+      // Üst rozet ve alttaki "Kasımpatının Kalbine Dokun" mesaj/buton alanı için
+      // garantili güvenli dikey bantlar ayır (çiçek ve yazı asla üst üste binmez ve yazı alttan taşmaz!)
       const isPortrait = vpH > vpW;
-      const maxAvailW = vpW * (isPortrait ? 0.94 : 0.88);
-      const maxAvailH = vpH * (isPortrait ? 0.58 : 0.68);
-      const fitScale = Math.min(maxAvailW / sceneW, maxAvailH / sceneH, 1.15);
+      const isShortScreen = vpH < 750;
+      const topReservedPx = vpW < 1024 ? (isShortScreen ? 76 : 94) : 58;
+      const bottomReservedPx = isShortScreen
+        ? 156
+        : isPortrait
+        ? 198
+        : 176;
+
+      const availFlowerH = Math.max(
+        180,
+        vpH - topReservedPx - bottomReservedPx
+      );
+      const availFlowerW = vpW * (isPortrait ? 0.92 : 0.86);
+
+      const fitScale = Math.min(
+        availFlowerW / sceneW,
+        (availFlowerH * 0.96) / sceneH,
+        1.08
+      );
 
       const offsetX = (vpW - sceneW * fitScale) / 2;
+      // Çiçeği tam olarak üst rozet ile alt mesaj bloğu arasındaki güvenli orta banda ortala
       const offsetY =
-        (vpH - sceneH * fitScale) / 2 - vpH * (isPortrait ? 0.01 : 0.02);
+        topReservedPx + (availFlowerH - sceneH * fitScale) / 2;
 
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(fitScale, fitScale);
 
-      // 0. Merkez sıcak ışık halesi ve kök tohum ışıltısı (0. milisaniyeden itibaren aktif!)
       const seedGlow = ctx.createRadialGradient(cx, 320, 8, cx, 360, 260);
       seedGlow.addColorStop(0, "rgba(232, 62, 112, 0.25)");
       seedGlow.addColorStop(0.5, "rgba(245, 213, 138, 0.12)");
@@ -922,7 +944,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       ctx.arc(cx, 340, 260, 0, Math.PI * 2);
       ctx.fill();
 
-      // 1. Dalları, yaprakları ve uç tomurcuklarını çiz
       const tipPositions: {
         branch: BranchSpec;
         pt: { x: number; y: number };
@@ -935,7 +956,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         }
       }
 
-      // 2. Yan kasımpatıları önce, ana Kraliçe Kasımpatıyı en üstte çiz (easeOutCubic ile gecikmesiz açılış)
       const sortedTips = [...tipPositions].sort((a, b) =>
         a.branch.isMainCenter ? 1 : b.branch.isMainCenter ? -1 : 0
       );
@@ -963,7 +983,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         }
       }
 
-      // 3. Altın polen ve yıldız ışıltıları (0. milisaniyeden itibaren görünür)
       const moteOpacity = 0.45 + 0.55 * rawProgress;
       for (const m of motes) {
         const curAngle = m.angle + timeSec * m.speed * 0.35;
@@ -983,7 +1002,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
 
       ctx.restore();
 
-      // 4. Tam ekran vektörel kalp geçiş dalgası
       const portalP = heartPortalRef.current.progress;
       if (portalP > 0.001) {
         const screenFlowerX = offsetX + mainFlowerPos.x * fitScale;
@@ -1107,13 +1125,9 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       scheduleNextFrame();
     };
 
-    // 1. SENKRON İLK KARE ÇİZİMİ: İlk requestAnimationFrame'i bile beklemeden
-    // mount anında (0. milisaniyede) ilk kareyi kanvasa çiz (Siyah ekranı %100 engeller!)
     paintSceneFrame(0);
     scheduleNextFrame();
 
-    // 2. Fail-safe Watchdog: iPad Düşük Güç Modu veya arka plan kısıtlaması rAF'ı yavaşlatsa bile
-    // en geç 3.8 saniye sonra çiçek açılmış durumuna ("bloomed") geçmeyi garanti et
     const watchdogTimer = window.setTimeout(() => {
       if (!isCancelled && !hasBloomedRef.current) {
         hasBloomedRef.current = true;
@@ -1121,7 +1135,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
       }
     }, 3800);
 
-    // 3. iPad Safari Dikey <-> Yatay Döndürme (Orientation Change) Çok Aşamalı Yeniden Boyutlandırma
     const clearOrientationTimeouts = () => {
       while (orientationTimeouts.length > 0) {
         const id = orientationTimeouts.pop();
@@ -1132,7 +1145,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
     const handleViewportOrOrientationChange = () => {
       if (isCancelled) return;
       clearOrientationTimeouts();
-      // iPad Safari'nin 400ms'lik döndürme animasyonu boyunca ve bittiğinde kanvası zorla güncelle
       for (const delay of [0, 80, 200, 380, 650]) {
         const tid = window.setTimeout(() => {
           if (isCancelled) return;
@@ -1171,7 +1183,6 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
 
     const handlePageShow = (e: PageTransitionEvent) => {
       if (e.persisted) {
-        // Safari BFCache'den geri dönüldüyse animasyonu temiz şekilde baştan başlat
         firstFrameTime = null;
         hiddenAtTime = null;
         hasBloomedRef.current = false;
@@ -1231,10 +1242,13 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         if (stage === "bloomed") triggerCinematicHeartDive();
       }}
       style={{
-        paddingTop: "max(1.25rem, env(safe-area-inset-top, 0px))",
-        paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 0px))",
+        width: "var(--app-width, 100%)",
+        height: "var(--app-height, 100dvh)",
+        paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))",
+        paddingBottom:
+          "max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.85rem))",
       }}
-      className={`fixed inset-0 w-full h-full z-50 flex flex-col items-center justify-between min-h-screen min-h-[100dvh] px-4 overflow-hidden bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] select-none ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-between px-4 overflow-hidden bg-[radial-gradient(circle_at_50%_42%,#4A102D_0%,#160618_58%,#080611_100%)] select-none ${
         stage === "bloomed" ? "cursor-pointer" : ""
       }`}
     >
@@ -1244,46 +1258,56 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
         className="fixed inset-0 w-full h-full pointer-events-none z-10 block"
       />
 
-      {/* Üst Rozet */}
-      <div className="relative z-20 mt-14 sm:mt-16 lg:mt-1 text-center pointer-events-none px-2">
-        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#190824]/80 border border-[#F5D58A]/35 text-[11px] sm:text-xs uppercase tracking-[0.22em] text-[#F5D58A] shadow-[0_0_20px_rgba(8,6,17,0.6)]">
-          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+      {/* Üst Rozet: iPad dikey/küçük ekranlarda sol üstteki müzik kontrolünün altında güvenli mesafede */}
+      <div
+        className={`relative z-20 text-center pointer-events-none px-2 shrink-0 ${
+          viewport.width < 1024 ? "mt-12 sm:mt-13" : "mt-1"
+        }`}
+      >
+        <span className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-[#190824]/85 border border-[#F5D58A]/35 text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[#F5D58A] shadow-[0_0_20px_rgba(8,6,17,0.65)]">
+          <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
           <span className="truncate">{UNIVERSE_CONFIG.flowerIntro.badgeText}</span>
-          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
         </span>
       </div>
 
-      {/* Orta Boşluk */}
-      <div className="my-auto" />
+      {/* Orta Boşluk (Çiçek güvenli orta bantta yer alır) */}
+      <div className="flex-1 min-h-0" />
 
-      {/* Alt Romantik Kasımpatı Mesajı ve Geçiş Butonu */}
-      <div className="relative z-30 min-h-[130px] sm:min-h-[150px] flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-4 pb-2">
+      {/* Alt Romantik Kasımpatı Mesajı ve "Kasımpatının Kalbine Dokun ❤️" Butonu (Asla taşmaz, tam sığar) */}
+      <div className="relative z-30 shrink-0 w-full flex flex-col items-center justify-end text-center max-w-2xl mx-auto px-3 sm:px-4 pb-1 sm:pb-2">
         <AnimatePresence mode="wait">
           {stage !== "growing" ? (
             <motion.div
               key="bloom-complete-message"
-              initial={{ opacity: 0, y: 14 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: stage === "transitioning" ? 0 : 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.45 }}
-              className="space-y-2.5 flex flex-col items-center"
+              className="space-y-1.5 sm:space-y-2.5 flex flex-col items-center"
             >
-              <h2 className="font-serif italic font-semibold text-2xl sm:text-3xl md:text-4xl bg-gradient-to-r from-[#FFF8FC] via-[#FF91B5] to-[#F5D58A] bg-clip-text text-transparent drop-shadow-[0_2px_25px_rgba(232,62,112,0.65)]">
+              <h2
+                className={`font-serif italic font-semibold bg-gradient-to-r from-[#FFF8FC] via-[#FF91B5] to-[#F5D58A] bg-clip-text text-transparent drop-shadow-[0_2px_25px_rgba(232,62,112,0.65)] leading-snug ${
+                  viewport.isCompactHeight
+                    ? "text-xl sm:text-2xl md:text-3xl"
+                    : "text-xl sm:text-3xl md:text-4xl"
+                }`}
+              >
                 &ldquo;{UNIVERSE_CONFIG.flowerIntro.message}&rdquo;
               </h2>
 
-              <p className="font-serif italic text-sm sm:text-base text-[#F5D58A]/90 tracking-wide max-w-lg">
+              <p className="font-serif italic text-xs sm:text-sm md:text-base text-[#F5D58A]/90 tracking-wide max-w-lg leading-relaxed">
                 {UNIVERSE_CONFIG.flowerIntro.novemberSubtext}
               </p>
 
-              <div className="pt-1">
+              <div className="pt-0.5 sm:pt-1">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     triggerCinematicHeartDive();
                   }}
-                  className="group inline-flex items-center gap-2.5 px-7 py-3.5 min-h-[52px] rounded-full bg-gradient-to-r from-[#4A102D] via-[#E83E70] to-[#4A102D] bg-[length:200%_100%] hover:bg-right border border-[#F5D58A]/70 text-xs sm:text-sm uppercase tracking-[0.2em] font-semibold text-[#FFF8FC] shadow-[0_0_35px_rgba(232,62,112,0.55)] hover:scale-105 active:scale-95 transition-all duration-500 cursor-pointer touch-manipulation"
+                  className="group inline-flex items-center justify-center gap-2 sm:gap-2.5 px-6 sm:px-7 py-2.5 sm:py-3.5 min-h-[46px] sm:min-h-[50px] rounded-full bg-gradient-to-r from-[#4A102D] via-[#E83E70] to-[#4A102D] bg-[length:200%_100%] hover:bg-right border border-[#F5D58A]/75 text-xs sm:text-sm uppercase tracking-[0.18em] sm:tracking-[0.2em] font-semibold text-[#FFF8FC] shadow-[0_0_35px_rgba(232,62,112,0.6)] hover:scale-105 active:scale-95 transition-all duration-500 cursor-pointer touch-manipulation"
                 >
                   <Heart className="w-4 h-4 text-[#F5D58A] fill-[#F5D58A] animate-pulse shrink-0" />
                   <span>{UNIVERSE_CONFIG.flowerIntro.touchHeartButtonText}</span>
@@ -1296,7 +1320,7 @@ export function FlowerBloomIntro({ onComplete }: FlowerBloomIntroProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.92 }}
               exit={{ opacity: 0 }}
-              className="font-serif italic text-base sm:text-xl text-[#F5D58A]/95 tracking-wide"
+              className="font-serif italic text-sm sm:text-lg md:text-xl text-[#F5D58A]/95 tracking-wide py-2"
             >
               {UNIVERSE_CONFIG.flowerIntro.growingText}
             </motion.p>

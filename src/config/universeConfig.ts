@@ -21,39 +21,44 @@ export const UNIVERSE_CONFIG = {
   birthdayIsoDate: "2026-11-21T00:00:00",
   birthdayDisplayDate: "21 Kasım 2026",
 
-  // 4 Şarkılık Romantik Kolaj Listesi (/public/music/ içindeki gerçek MP3 kayıtları)
-  // crossfadeSeconds: Şarkılar arası yumuşak geçiş (fade-out / fade-in) süresi
+  // 4 Şarkılık Tam Süreli & Yumuşak Geçişli Romantik Müzik Listesi (/public/music/ içindeki gerçek MP3 kayıtları)
+  // crossfadeSeconds: Şarkılar doğal sonuna yaklaştığında devreye giren yumuşak geçiş (fade-out / fade-in) süresi
   // startAtSeconds: Şarkının başlayacağı saniye (0 = en baştan)
-  // excerptDurationSeconds: Kolajda bir sonraki şarkıya yumuşak geçiş yapmadan önce çalacağı süre (saniye)
-  crossfadeSeconds: 5.5,
+  // excerptDurationSeconds: Şarkının tam çalma süresi (erken kesilmeden tüm nakarat ve sololarıyla tam sürüm çalar)
+  // volumeScale: Şarkılar arasında ani ses seviyesi farkı oluşmaması için ses dengeleme çarpanı
+  crossfadeSeconds: 6.0,
   musicPlaylist: [
     {
       id: "piyanist",
       title: "Ferdi Özbeğen — Piyanist 🎹",
       src: "/music/Ferdi Özbeğen - Piyanist.mp3",
       startAtSeconds: 0,
-      excerptDurationSeconds: 75,
+      excerptDurationSeconds: 226,
+      volumeScale: 1.0,
     },
     {
       id: "gurbette-sevgilim",
       title: "Ferdi Özbeğen — Gurbette Sevgilim 🌹",
       src: "/music/Ferdi Özbeğen - Gurbette Sevgilim.mp3",
       startAtSeconds: 0,
-      excerptDurationSeconds: 75,
+      excerptDurationSeconds: 266,
+      volumeScale: 1.0,
     },
     {
       id: "hani-benim-olacaktin",
       title: "Haluk Levent — Hani Benim Olacaktın ❤️",
       src: "/music/Haluk Levent  -  Hani Benim Olacaktın - SENDE Bİ DİNLE.mp3",
       startAtSeconds: 0,
-      excerptDurationSeconds: 75,
+      excerptDurationSeconds: 232,
+      volumeScale: 0.86,
     },
     {
       id: "ayrilik",
       title: "Selda Bağcan — Ayrılık ✨",
       src: "/music/Ayrılık - Selda Bağcan.mp3",
       startAtSeconds: 0,
-      excerptDurationSeconds: 75,
+      excerptDurationSeconds: 278,
+      volumeScale: 0.88,
     },
   ],
   customAudioSrc: "/music/Ferdi Özbeğen - Piyanist.mp3",
